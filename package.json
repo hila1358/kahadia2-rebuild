@@ -1,0 +1,29 @@
+{
+  "name": "kahadia-system",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "server": "node server.js",
+    "db:setup": "sqlite3 kahadia.db < db/schema.sql",
+    "db:seed": "sqlite3 kahadia.db < db/seed.sql",
+    "db:reset": "rm -f kahadia.db && npm run db:setup && npm run db:seed"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}

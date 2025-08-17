@@ -1,0 +1,20 @@
+# Node / JS
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.log
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Databases
+*.sqlite
+*.sqlite3
+*.db
+
+.next/

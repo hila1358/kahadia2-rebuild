@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>קה״דיה - מערכת ניהול שבצ״ק</title>
+    <link rel="stylesheet" href="../src/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="logo">
+                <div class="logo-icon">📋</div>
+                <span id="logo-text">קה״דיה</span>
+            </div>
+            <nav class="nav-menu">
+                <div class="nav-item active" data-section="dashboard">
+                    <span class="nav-icon">📊</span>
+                    <span>לוח בקרה</span>
+                </div>
+                <div class="nav-item" data-section="personnel">
+                    <span class="nav-icon">👥</span>
+                    <span>תיקים אישיים</span>
+                </div>
+                <div class="nav-item" data-section="departments">
+                    <span class="nav-icon">🏢</span>
+                    <span>מחלקות</span>
+                </div>
+                <div class="nav-item" data-section="positions">
+                    <span class="nav-icon">💼</span>
+                    <span>עמדות ותפקידנים</span>
+                </div>
+                <div class="nav-item" data-section="skills">
+                    <span class="nav-icon">🎯</span>
+                    <span>כשירויות</span>
+                </div>
+                <div class="nav-item" data-section="constraints">
+                    <span class="nav-icon">⚠️</span>
+                    <span>אילוצים</span>
+                </div>
+                <div class="nav-item" data-section="schedule">
+                    <span class="nav-icon">📅</span>
+                    <span>שיבוצים</span>
+                </div>
+                <div class="nav-item" data-section="view-schedule">
+                    <span class="nav-icon">👁️</span>
+                    <span>צפייה בשבצ״ק</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 class="header-title">מערכת ניהול שבצ״ק</h1>
+                <div class="header-actions">
+                    <div class="search-box">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" placeholder="חיפוש..." />
+                    </div>
+                    <button class="btn-icon">🔔</button>
+                    <button class="btn-icon">👤</button>
+                </div>
+            </header>
+
+            <!-- Content Wrapper -->
+            <div class="content-wrapper">
+                <!-- Dashboard Section -->
+                <section id="dashboard" class="page-section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="totalPersonnel">247</div>
+                            <div class="stat-label">סה״כ אנשי צוות</div>
+                            <span class="stat-change positive">↑ 12% מהחודש שעבר</span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="activePositions">18</div>
+                            <div class="stat-label">עמדות פעילות</div>
+                            <span class="stat-change positive">↑ 2 עמדות חדשות</span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="staffingRate">94%</div>
+                            <div class="stat-label">שיעור איוש</div>
+                            <span class="stat-change positive">↑ 3% השבוע</span>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="weeklyConstraints">7</div>
+                            <div class="stat-label">אילוצים השבוע</div>
+                            <span class="stat-change negative">↓ 2 מהשבוע שעבר</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">שיבוצים קרובים</h2>
+                            <button class="btn btn-primary" onclick="app.showSection('schedule')">
+                                <span>➕</span>
+                                <span>שיבוץ חדש</span>
+                            </button>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>עמדה</th>
+                                    <th>תאריך</th>
+                                    <th>משמרת</th>
+                                    <th>משובץ</th>
+                                    <th>סטטוס</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="upcomingSchedules">
+                                <tr>
+                                    <td>מוקד תקשורת</td>
+                                    <td>13.08.2025</td>
+                                    <td>08:00 - 14:00</td>
+                                    <td>דוד ישראלי</td>
+                                    <td><span class="status-badge status-active">מאושר</span></td>
+                                    <td>
+                                        <button class="btn-icon">✏️</button>
+                                        <button class="btn-icon">🗑️</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>חמ״ל מבצעים</td>
+                                    <td>13.08.2025</td>
+                                    <td>14:00 - 20:00</td>
+                                    <td>שרה כהן</td>
+                                    <td><span class="status-badge status-pending">ממתין</span></td>
+                                    <td>
+                                        <button class="btn-icon">✏️</button>
+                                        <button class="btn-icon">🗑️</button>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>אבטחת מידע</td>
+                                    <td>14.08.2025</td>
+                                    <td>20:00 - 08:00</td>
+                                    <td>-</td>
+                                    <td><span class="status-badge status-inactive">לא משובץ</span></td>
+                                    <td>
+                                        <button class="btn-icon">➕</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">אילוצים השבוע</h2>
+                            <button class="btn btn-secondary" onclick="app.showSection('constraints')">
+                                <span>👁️</span>
+                                <span>צפה בכל האילוצים</span>
+                            </button>
+                        </div>
+                        <div id="weeklyConstraintsPreview">
+                            <!-- Dynamic constraint previews -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Personnel Section -->
+                <section id="personnel" class="page-section">
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="app.showPersonnelModal()">
+                            <span>➕</span>
+                            <span>הוסף תיק אישי</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="app.exportPersonnel()">
+                            <span>📊</span>
+                            <span>ייצא נתונים</span>
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">תיקים אישיים</h2>
+                            <div class="search-box">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="personnelSearch" placeholder="חיפוש לפי שם, מספר אישי או מחלקה..." />
+                            </div>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>שם מלא</th>
+                                    <th>מספר אישי</th>
+                                    <th>דרגה</th>
+                                    <th>מחלקה</th>
+                                    <th>אוכלוסייה</th>
+                                    <th>כשירויות</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="personnelTable">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Departments Section -->
+                <section id="departments" class="page-section">
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="app.showDepartmentModal()">
+                            <span>➕</span>
+                            <span>הוסף מחלקה</span>
+                        </button>
+                    </div>
+                    <div id="departmentsContainer">
+                        <!-- Dynamic department cards -->
+                    </div>
+                </section>
+
+                <!-- Positions Section -->
+                <section id="positions" class="page-section">
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="app.showPositionModal()">
+                            <span>➕</span>
+                            <span>הוסף עמדה</span>
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">עמדות ותפקידנים</h2>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>שם עמדה</th>
+                                    <th>תפקידנים</th>
+                                    <th>כשירויות נדרשות</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positionsTable">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Skills Section -->
+                <section id="skills" class="page-section">
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="app.showSkillModal()">
+                            <span>➕</span>
+                            <span>הוסף כשירות</span>
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">כשירויות</h2>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>שם כשירות</th>
+                                    <th>מספר מוסמכים</th>
+                                    <th>הערות</th>
+                                    <th>פעולות</th>
+                                </tr>
+                            </thead>
+                            <tbody id="skillsTable">
+                                <!-- Dynamic content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Constraints Section -->
+                <section id="constraints" class="page-section">
+                    <div class="action-row">
+                        <label class="form-label">בחר מחלקה:</label>
+                        <select class="form-select" id="constraintDepartmentSelect" onchange="app.loadConstraints()">
+                            <option value="">כל המחלקות</option>
+                        </select>
+                        <label class="form-label">שבוע:</label>
+                        <input type="week" class="form-input" id="constraintWeekSelect" onchange="app.loadConstraints()" />
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">אילוצים</h2>
+                        </div>
+                        <div id="constraintsGrid">
+                            <!-- Dynamic constraints weekly grid -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Schedule Building Section -->
+                <section id="schedule" class="page-section">
+                    <div class="action-row">
+                        <label class="form-label">בחר עמדה:</label>
+                        <select class="form-select" id="schedulePositionSelect" onchange="app.loadScheduleBuilder()">
+                            <option value="">בחר עמדה</option>
+                        </select>
+                        <label class="form-label">שבוע:</label>
+                        <input type="week" class="form-input" id="scheduleWeekSelect" onchange="app.loadScheduleBuilder()" />
+                        <button class="btn btn-success" onclick="app.saveSchedule()">
+                            <span>💾</span>
+                            <span>שמור שבצ״ק</span>
+                        </button>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">בניית שבצ״ק</h2>
+                        </div>
+                        <div id="scheduleBuilder">
+                            <!-- Dynamic schedule building interface -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Schedule View Section -->
+                <section id="view-schedule" class="page-section">
+                    <div class="action-row">
+                        <label class="form-label">בחר עמדה:</label>
+                        <select class="form-select" id="viewPositionSelect" onchange="app.loadScheduleView()">
+                            <option value="">בחר עמדה</option>
+                        </select>
+                        <label class="form-label">שבוע:</label>
+                        <input type="week" class="form-input" id="viewWeekSelect" onchange="app.loadScheduleView()" />
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">צפייה בשבצ״ק</h2>
+                        </div>
+                        <div class="schedule-grid" id="scheduleViewGrid">
+                            <!-- Dynamic schedule display -->
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Container -->
+    <div class="modal" id="genericModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">כותרת</h3>
+                <button class="modal-close" onclick="app.closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Dynamic form content -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Toggle -->
+    <div class="theme-toggle">
+        <button class="theme-toggle-btn" onclick="app.toggleTheme()">🌙</button>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="fab" onclick="app.showQuickAdd()">➕</button>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="../src/main.js"></script>
+</body>
+</html>
