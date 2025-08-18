@@ -1207,49 +1207,12 @@
 
                 <!-- Personnel Section -->
                 <section id="personnel" class="page-section">
-                    <div class="action-row">
-                        <button class="btn btn-primary" onclick="showPersonnelModal()">
-                            <span>➕</span>
-                            <span>הוסף תיק אישי</span>
-                        </button>
-                        <button class="btn btn-secondary" onclick="exportPersonnel()">
-                            <span>📊</span>
-                            <span>ייצא נתונים</span>
-                        </button>
-                    </div>
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">תיקים אישיים</h2>
                             <div class="search-box">
                                 <span class="search-icon">🔍</span>
                                 <input type="text" id="personnelSearch" placeholder="חיפוש לפי שם, מספר אישי או מחלקה..." oninput="debounceGlobalSearch(this.value)" />
-                            </div>
-                        </div>
-                        
-                        <!-- Personnel Filters -->
-                        <div class="filters-section" style="padding: 16px; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
-                            <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                                <div class="filter-group">
-                                    <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500;">מחלקה</label>
-                                    <select id="departmentFilter" class="form-select" style="min-width: 140px;" onchange="applyPersonnelFilters()">
-                                        <option value="">כל המחלקות</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500;">אוכלוסייה</label>
-                                    <select id="populationFilter" class="form-select" style="min-width: 140px;" onchange="applyPersonnelFilters()">
-                                        <option value="">כל האוכלוסיות</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 500;">כשירות</label>
-                                    <select id="qualificationFilter" class="form-select" style="min-width: 140px;" onchange="applyPersonnelFilters()">
-                                        <option value="">כל הכשירויות</option>
-                                    </select>
-                                </div>
-                                <div class="filter-group">
-                                    <button class="btn btn-secondary" onclick="clearPersonnelFilters()" style="margin-top: 18px;">נקה מסננים</button>
-                                </div>
                             </div>
                         </div>
                         
@@ -1285,6 +1248,9 @@
                                     </th>
                                     <th class="sortable" data-column="population_name" onclick="sortTable('population_name')">
                                         אוכלוסייה <span class="sort-arrow"></span>
+                                    </th>
+                                    <th class="sortable" data-column="qualifications" onclick="sortTable('qualifications')">
+                                        כשירויות <span class="sort-arrow"></span>
                                     </th>
                                     <th class="sortable" data-column="residence" onclick="sortTable('residence')">
                                         מקום מגורים <span class="sort-arrow"></span>
@@ -1323,6 +1289,11 @@
                                             <option value="">כל האוכלוסיות</option>
                                         </select>
                                     </th>
+                                    <th>
+                                        <select class="column-filter" data-column="qualifications" id="columnQualificationsFilter" onchange="applyColumnFilter(this)">
+                                            <option value="">כל הכשירויות</option>
+                                        </select>
+                                    </th>
                                     <th><input type="text" class="column-filter" data-column="residence" placeholder="סנן מגורים..." onchange="applyColumnFilter(this)"></th>
                                     <th><input type="date" class="column-filter" data-column="arrival_date" onchange="applyColumnFilter(this)"></th>
                                     <th>
@@ -1333,9 +1304,7 @@
                                             <option value="אלמן">אלמן</option>
                                         </select>
                                     </th>
-                                    <th>
-                                        <button class="btn btn-secondary btn-sm" onclick="clearAllFilters()">נקה הכל</button>
-                                    </th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody id="personnelTable">
@@ -1687,7 +1656,7 @@
                                     <option value="">בחר עמדה</option>
                                 </select>
                                 <input type="week" class="form-input" id="scheduleWeekPicker" onchange="loadScheduleData()" style="max-width: 200px;">
-                                <button class="btn btn-secondary" id="addTimeRangeBtn" onclick="showTimeRangeModal()" disabled>➕ הוסף טווח שעות</button>
+                                <button class="btn btn-primary" id="showImageBtn" onclick="showScheduleAsImage()" style="max-width: 150px;">📷 הצג כתמונה</button>
                             </div>
                         </div>
                         <!-- Time Ranges Header -->
@@ -1697,6 +1666,7 @@
                                 <div id="timeRangeChips" style="display: flex; gap: 8px; flex-wrap: wrap;">
                                     <!-- Dynamic time range chips -->
                                 </div>
+                                <button class="btn btn-secondary" id="addTimeRangeBtn" onclick="showTimeRangeModal()" disabled>➕ הוסף טווח שעות</button>
                             </div>
                         </div>
                         
@@ -1775,6 +1745,14 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
+        // Global variables for personnel filtering and sorting
+        let allPersonnelData = [];
+        let currentFilters = {};
+        let currentSort = { column: null, direction: 'asc' };
+        
+        // API Base URL
+        const API_BASE = 'http://localhost:3001/api';
+        
         // Navigation functionality
         function showSection(sectionName, clickedElement) {
             // Update nav active state
@@ -1800,8 +1778,7 @@
             // Load section-specific data
             switch(sectionName) {
                 case 'personnel':
-                    loadPersonnelDataWithFiltering();
-                    loadPersonnelFilters();
+                    loadPersonnelData();
                     break;
                 case 'departments':
                     loadDepartmentsData();
@@ -2497,7 +2474,6 @@
         }
 
         // API Functions
-        const API_BASE = 'http://localhost:3001/api';
 
         async function handlePersonnelSubmit(event) {
             event.preventDefault();
@@ -4147,7 +4123,29 @@
                 const response = await fetch(`${API_BASE}/personnel`);
                 if (response.ok) {
                     const personnel = await response.json();
-                    updatePersonnelDisplay(personnel);
+                    
+                    // Load qualifications for each person
+                    const personnelWithQualifications = await Promise.all(
+                        personnel.map(async (person) => {
+                            try {
+                                const skillsResponse = await fetch(`${API_BASE}/personnel/${person.id}/skills`);
+                                const qualifications = skillsResponse.ok ? await skillsResponse.json() : [];
+                                return { ...person, qualifications };
+                            } catch (error) {
+                                console.error(`Error loading qualifications for person ${person.id}:`, error);
+                                return { ...person, qualifications: [] };
+                            }
+                        })
+                    );
+                    
+                    // Store data globally for filtering and sorting
+                    allPersonnelData = personnelWithQualifications;
+                    updatePersonnelDisplay(personnelWithQualifications);
+                    
+                    // Load filter options
+                    loadQualificationsFilter();
+                    loadDepartmentFilter();
+                    loadPopulationFilter();
                 }
             } catch (error) {
                 console.error('Error loading personnel:', error);
@@ -4159,8 +4157,50 @@
             if (!tableBody) return;
             
             if (personnel.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="11" style="text-align: center; color: var(--text-muted); padding: 40px;">אין תיקים אישיים</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="12" style="text-align: center; color: var(--text-muted); padding: 40px;">אין תיקים אישיים</td></tr>';
                 return;
+            }
+            
+            // Helper function to render qualification chips
+            function renderQualificationChips(qualifications) {
+                if (!qualifications || qualifications.length === 0) {
+                    return '<span style="color: var(--text-muted); font-style: italic; font-size: 12px;">אין כשירויות</span>';
+                }
+                
+                return qualifications.map(qual => {
+                    let chipColor = '';
+                    let bgColor = '';
+                    
+                    switch (qual.status) {
+                        case 'מוסמך כשיר':
+                            chipColor = '#22c55e';
+                            bgColor = 'rgba(34, 197, 94, 0.1)';
+                            break;
+                        case 'מוסמך לא כשיר':
+                            chipColor = '#ef4444';
+                            bgColor = 'rgba(239, 68, 68, 0.1)';
+                            break;
+                        case 'בתהליך הסמכה':
+                            chipColor = '#eab308';
+                            bgColor = 'rgba(234, 179, 8, 0.1)';
+                            break;
+                        default:
+                            chipColor = '#6b7280';
+                            bgColor = 'rgba(107, 114, 128, 0.1)';
+                    }
+                    
+                    return `<span class="qualification-chip" style="
+                        display: inline-block;
+                        background: ${bgColor};
+                        color: ${chipColor};
+                        border: 1px solid ${chipColor};
+                        padding: 2px 6px;
+                        margin: 1px 2px;
+                        border-radius: 10px;
+                        font-size: 11px;
+                        font-weight: 500;
+                    ">${qual.skill_name || qual.name}</span>`;
+                }).join('');
             }
             
             tableBody.innerHTML = personnel.map(person => `
@@ -4172,6 +4212,9 @@
                     <td>${person.branch}</td>
                     <td>${person.department_name || 'לא משובץ'}</td>
                     <td>${person.population_name || 'לא מוגדר'}</td>
+                    <td style="max-width: 200px; overflow: hidden;">
+                        ${renderQualificationChips(person.qualifications)}
+                    </td>
                     <td>${person.residence}</td>
                     <td>${person.arrival_date || person.enlistment_date}</td>
                     <td>${person.marital_status}</td>
@@ -4182,6 +4225,211 @@
                     </td>
                 </tr>
             `).join('');
+        }
+        
+        // ========== PERSONNEL SORTING AND FILTERING ==========
+        
+        // Sort table by column
+        function sortTable(column) {
+            const currentDirection = currentSort.column === column ? currentSort.direction : 'asc';
+            const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            
+            currentSort = { column, direction: newDirection };
+            
+            // Update sort arrows
+            document.querySelectorAll('.sort-arrow').forEach(arrow => arrow.textContent = '');
+            const clickedHeader = document.querySelector(`[data-column="${column}"] .sort-arrow`);
+            if (clickedHeader) {
+                clickedHeader.textContent = newDirection === 'asc' ? '↑' : '↓';
+            }
+            
+            // Sort data
+            const sortedData = [...allPersonnelData].sort((a, b) => {
+                let aVal = '';
+                let bVal = '';
+                
+                switch (column) {
+                    case 'qualifications':
+                        // Sort by number of qualifications, then by qualification names
+                        const aQuals = a.qualifications || [];
+                        const bQuals = b.qualifications || [];
+                        if (aQuals.length !== bQuals.length) {
+                            aVal = aQuals.length;
+                            bVal = bQuals.length;
+                        } else {
+                            aVal = aQuals.map(q => q.skill_name || q.name).sort().join(',');
+                            bVal = bQuals.map(q => q.skill_name || q.name).sort().join(',');
+                        }
+                        break;
+                    case 'full_name':
+                        aVal = a.full_name || '';
+                        bVal = b.full_name || '';
+                        return aVal.localeCompare(bVal, 'he', { numeric: true, sensitivity: 'base' }) * (newDirection === 'asc' ? 1 : -1);
+                    case 'arrival_date':
+                        aVal = new Date(a.arrival_date || a.enlistment_date || '1900-01-01');
+                        bVal = new Date(b.arrival_date || b.enlistment_date || '1900-01-01');
+                        break;
+                    default:
+                        aVal = a[column] || '';
+                        bVal = b[column] || '';
+                }
+                
+                if (column === 'arrival_date' || column === 'qualifications') {
+                    const comparison = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                    return comparison * (newDirection === 'asc' ? 1 : -1);
+                } else {
+                    const comparison = aVal.toString().localeCompare(bVal.toString(), 'he');
+                    return comparison * (newDirection === 'asc' ? 1 : -1);
+                }
+            });
+            
+            updatePersonnelDisplay(sortedData);
+        }
+        
+        // Apply column filter
+        function applyColumnFilter(filterElement) {
+            const column = filterElement.dataset.column;
+            const value = filterElement.value.toLowerCase();
+            
+            if (value === '') {
+                delete currentFilters[column];
+            } else {
+                currentFilters[column] = value;
+            }
+            
+            // Filter data
+            let filteredData = [...allPersonnelData];
+            
+            Object.keys(currentFilters).forEach(filterColumn => {
+                const filterValue = currentFilters[filterColumn];
+                
+                filteredData = filteredData.filter(person => {
+                    switch (filterColumn) {
+                        case 'qualifications':
+                            if (!person.qualifications || person.qualifications.length === 0) {
+                                return filterValue === 'none';
+                            }
+                            return person.qualifications.some(qual => 
+                                (qual.skill_name || qual.name || '').toLowerCase().includes(filterValue) ||
+                                (qual.status || '').toLowerCase().includes(filterValue)
+                            );
+                        case 'department_name':
+                            const personDept = person.department_name || 'לא משובץ';
+                            return personDept.toLowerCase() === filterValue.toLowerCase();
+                        case 'population_name':
+                            const personPop = person.population_name || 'לא מוגדר';
+                            return personPop.toLowerCase() === filterValue.toLowerCase();
+                        case 'arrival_date':
+                            return (person.arrival_date || person.enlistment_date || '').includes(filterValue);
+                        default:
+                            return (person[filterColumn] || '').toLowerCase().includes(filterValue);
+                    }
+                });
+            });
+            
+            // Apply sorting if active
+            if (currentSort.column) {
+                sortTable(currentSort.column);
+            } else {
+                updatePersonnelDisplay(filteredData);
+            }
+        }
+        
+        // Load qualifications filter options
+        function loadQualificationsFilter() {
+            const qualificationsFilter = document.getElementById('columnQualificationsFilter');
+            if (!qualificationsFilter || !allPersonnelData) return;
+            
+            // Get all unique qualifications
+            const allQualifications = new Set();
+            const allStatuses = new Set();
+            
+            allPersonnelData.forEach(person => {
+                if (person.qualifications && person.qualifications.length > 0) {
+                    person.qualifications.forEach(qual => {
+                        allQualifications.add(qual.skill_name || qual.name);
+                        allStatuses.add(qual.status);
+                    });
+                }
+            });
+            
+            // Build filter options
+            let options = '<option value="">כל הכשירויות</option>';
+            options += '<option value="none">אין כשירויות</option>';
+            
+            // Add qualification names
+            [...allQualifications].sort().forEach(qual => {
+                options += `<option value="${qual.toLowerCase()}">${qual}</option>`;
+            });
+            
+            // Add separator and statuses
+            if (allStatuses.size > 0) {
+                options += '<option disabled>--- סטטוס ---</option>';
+                [...allStatuses].sort().forEach(status => {
+                    options += `<option value="${status.toLowerCase()}">${status}</option>`;
+                });
+            }
+            
+            qualificationsFilter.innerHTML = options;
+        }
+        
+        // Load department filter options
+        function loadDepartmentFilter() {
+            const departmentFilter = document.getElementById('columnDepartmentFilter');
+            if (!departmentFilter || !allPersonnelData) return;
+            
+            // Get all unique departments
+            const allDepartments = new Set();
+            allPersonnelData.forEach(person => {
+                if (person.department_name && person.department_name.trim()) {
+                    allDepartments.add(person.department_name);
+                }
+            });
+            
+            // Build filter options
+            let options = '<option value="">כל המחלקות</option>';
+            options += '<option value="לא משובץ">לא משובץ</option>';
+            
+            // Add department names
+            [...allDepartments].sort().forEach(dept => {
+                options += `<option value="${dept}">${dept}</option>`;
+            });
+            
+            departmentFilter.innerHTML = options;
+        }
+        
+        // Load population filter options
+        function loadPopulationFilter() {
+            const populationFilter = document.getElementById('columnPopulationFilter');
+            if (!populationFilter || !allPersonnelData) return;
+            
+            // Get all unique populations
+            const allPopulations = new Set();
+            allPersonnelData.forEach(person => {
+                if (person.population_name && person.population_name.trim()) {
+                    allPopulations.add(person.population_name);
+                }
+            });
+            
+            // Build filter options
+            let options = '<option value="">כל האוכלוסיות</option>';
+            options += '<option value="לא מוגדר">לא מוגדר</option>';
+            
+            // Add population names
+            [...allPopulations].sort().forEach(pop => {
+                options += `<option value="${pop}">${pop}</option>`;
+            });
+            
+            populationFilter.innerHTML = options;
+        }
+        
+        // Clear all filters
+        function clearAllFilters() {
+            currentFilters = {};
+            document.querySelectorAll('.column-filter').forEach(filter => {
+                filter.value = '';
+            });
+            updatePersonnelDisplay(allPersonnelData);
         }
         
         // ========== PERSONNEL CHECKBOX FUNCTIONS ==========
@@ -4220,49 +4468,6 @@
         
         function getSelectedPersonnelIds() {
             return Array.from(document.querySelectorAll('.personnel-checkbox:checked')).map(cb => parseInt(cb.value));
-        }
-
-        // ========== PERSONNEL SORTING AND FILTERING ==========
-        
-        let currentSort = { column: null, direction: 'asc' };
-        let currentFilters = {};
-        let allPersonnelData = [];
-
-        function sortTable(column) {
-            // Toggle sort direction
-            if (currentSort.column === column) {
-                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-            } else {
-                currentSort.column = column;
-                currentSort.direction = 'asc';
-            }
-
-            // Update UI indicators
-            document.querySelectorAll('.sortable').forEach(th => {
-                th.classList.remove('sort-asc', 'sort-desc');
-            });
-            
-            const currentTh = document.querySelector(`[data-column="${column}"]`);
-            if (currentTh) {
-                currentTh.classList.add(`sort-${currentSort.direction}`);
-            }
-
-            // Apply sort and filters
-            applyFiltersAndSort();
-        }
-
-        function applyColumnFilter(element) {
-            const column = element.getAttribute('data-column');
-            const value = element.value.trim();
-            
-            if (value) {
-                currentFilters[column] = value;
-            } else {
-                delete currentFilters[column];
-            }
-            
-            // Apply filters and sort
-            applyFiltersAndSort();
         }
 
         function applyFiltersAndSort() {
@@ -5599,18 +5804,11 @@
             const sunday = new Date(now);
             sunday.setDate(now.getDate() - now.getDay()); // Sunday is day 0
             
+            // Use ISO week calculation but adjust for Sunday start
             const year = sunday.getFullYear();
-            
-            // Calculate week number (Sunday start) - more accurate calculation
             const startOfYear = new Date(year, 0, 1);
-            const firstSunday = new Date(startOfYear);
-            firstSunday.setDate(1 - startOfYear.getDay()); // Go to first Sunday of year
-            if (firstSunday.getFullYear() < year) {
-                firstSunday.setDate(firstSunday.getDate() + 7); // Move to first Sunday of current year
-            }
-            
-            const daysSinceFirstSunday = Math.floor((sunday - firstSunday) / (24 * 60 * 60 * 1000));
-            const weekNumber = Math.floor(daysSinceFirstSunday / 7) + 1;
+            const dayOfYear = Math.floor((sunday - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
+            const weekNumber = Math.ceil(dayOfYear / 7);
             
             return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
         }
@@ -5618,20 +5816,19 @@
         // Convert week picker value (YYYY-Www) to Sunday date (Sunday start)
         function weekPickerToSundayDate(weekPickerValue) {
             const [year, week] = weekPickerValue.split('-W');
-            const startOfYear = new Date(year, 0, 1);
             
-            // Find the first Sunday of the year
-            const firstSunday = new Date(startOfYear);
-            firstSunday.setDate(1 - startOfYear.getDay()); // Go back to previous Sunday if needed
-            if (firstSunday.getFullYear() < year) {
-                firstSunday.setDate(firstSunday.getDate() + 7); // Move to first Sunday of current year
-            }
+            // Calculate the Sunday for the given week number
+            const startOfYear = new Date(parseInt(year), 0, 1);
+            const daysToAdd = (parseInt(week) - 1) * 7;
+            const targetDate = new Date(startOfYear);
+            targetDate.setDate(startOfYear.getDate() + daysToAdd);
             
-            // Calculate the Sunday of the specified week
-            const targetSunday = new Date(firstSunday);
-            targetSunday.setDate(firstSunday.getDate() + (week - 1) * 7);
+            // Adjust to Sunday of that week
+            const dayOfWeek = targetDate.getDay();
+            const sunday = new Date(targetDate);
+            sunday.setDate(targetDate.getDate() - dayOfWeek);
             
-            return targetSunday;
+            return sunday;
         }
 
         // Load departments for constraints selector
@@ -6205,24 +6402,35 @@
             }
 
             // Prepare data for Excel export
-            const excelData = dataToExport.map(person => ({
-                'שם מלא': person.full_name || '',
-                'מספר אישי': person.personal_number || '',
-                'דרגה': person.rank || '',
-                'גף': person.branch || '',
-                'מחלקה': person.department_name || 'לא משובץ',
-                'אוכלוסייה': person.population_name || 'לא מוגדר',
-                'מקום מגורים': person.residence || '',
-                'תאריך הגעה': person.arrival_date || person.enlistment_date || '',
-                'סטטוס משפחתי': person.marital_status || '',
-                'תעודת זהות': person.id_number || '',
-                'תאריך לידה': person.birth_date || '',
-                'תאריך גיוס': person.enlistment_date || '',
-                'תאריך שחרור': person.discharge_date || '',
-                'מספר טלפון': person.phone || '',
-                'מחזור קורס': person.course_cycle || '',
-                'הערות': person.notes || ''
-            }));
+            const excelData = dataToExport.map(person => {
+                // Format qualifications for export
+                let qualificationsText = 'אין כשירויות';
+                if (person.qualifications && person.qualifications.length > 0) {
+                    qualificationsText = person.qualifications.map(qual => 
+                        `${qual.skill_name || qual.name} (${qual.status})`
+                    ).join(', ');
+                }
+                
+                return {
+                    'שם מלא': person.full_name || '',
+                    'מספר אישי': person.personal_number || '',
+                    'דרגה': person.rank || '',
+                    'גף': person.branch || '',
+                    'מחלקה': person.department_name || 'לא משובץ',
+                    'אוכלוסייה': person.population_name || 'לא מוגדר',
+                    'כשירויות': qualificationsText,
+                    'מקום מגורים': person.residence || '',
+                    'תאריך הגעה': person.arrival_date || person.enlistment_date || '',
+                    'סטטוס משפחתי': person.marital_status || '',
+                    'תעודת זהות': person.id_number || '',
+                    'תאריך לידה': person.birth_date || '',
+                    'תאריך גיוס': person.enlistment_date || '',
+                    'תאריך שחרור': person.discharge_date || '',
+                    'מספר טלפון': person.phone || '',
+                    'מחזור קורס': person.course_cycle || '',
+                    'הערות': person.notes || ''
+                };
+            });
 
             // Create workbook
             const wb = XLSX.utils.book_new();
@@ -6236,6 +6444,7 @@
                 { wch: 12 }, // גף
                 { wch: 15 }, // מחלקה
                 { wch: 12 }, // אוכלוסייה
+                { wch: 25 }, // כשירויות
                 { wch: 15 }, // מקום מגורים
                 { wch: 12 }, // תאריך הגעה
                 { wch: 12 }, // סטטוס משפחתי
@@ -6681,13 +6890,35 @@
                         select.innerHTML = '<option value="">בחר עמדה</option>' + 
                             positions.map(pos => `<option value="${pos.id}">${pos.name}</option>`).join('');
                     }
+                    
+                    // Only restore selections if BOTH position and week were saved together
+                    const savedPositionId = localStorage.getItem('schedule_selected_position');
+                    const savedWeek = localStorage.getItem('schedule_selected_week');
+                    
+                    if (savedPositionId && savedWeek && select && savedPositionId !== 'null' && savedPositionId !== '' && savedWeek !== 'null' && savedWeek !== '') {
+                        const optionExists = select.querySelector(`option[value="${savedPositionId}"]`);
+                        if (optionExists) {
+                            select.value = savedPositionId;
+                        }
+                    }
                 }
                 
-                // Initialize week picker to current week (Sunday start)
+                // Only restore week if both position and week were saved together  
                 const weekPicker = document.getElementById('scheduleWeekPicker');
                 if (weekPicker) {
-                    const currentWeek = getCurrentWeekSundayStart();
-                    weekPicker.value = currentWeek;
+                    const savedPositionId = localStorage.getItem('schedule_selected_position');
+                    const savedWeek = localStorage.getItem('schedule_selected_week');
+                    
+                    if (savedPositionId && savedWeek && savedPositionId !== 'null' && savedPositionId !== '' && savedWeek !== 'null' && savedWeek !== '') {
+                        weekPicker.value = savedWeek;
+                    }
+                    // Otherwise, leave week picker empty (no auto-selection)
+                }
+                
+                // Load schedule data if both position and week are selected
+                const positionSelect = document.getElementById('schedulePositionSelect');
+                if (positionSelect?.value && weekPicker?.value) {
+                    loadScheduleData();
                 }
             } catch (error) {
                 console.error('Error loading positions for schedule:', error);
@@ -6708,6 +6939,10 @@
             
             const positionId = positionSelect.value;
             const weekStart = weekPicker.value;
+            
+            // Save selections to localStorage for persistence
+            localStorage.setItem('schedule_selected_position', positionId);
+            localStorage.setItem('schedule_selected_week', weekStart);
             
             // Convert week picker format to Sunday date (Sunday start)
             const israelWeekStart = weekPickerToSundayDate(weekStart);
@@ -6746,11 +6981,21 @@
                 return;
             }
             
+            // Calculate week dates for the selected week (Sunday to Saturday)
+            const weekPicker = document.getElementById('scheduleWeekPicker');
+            const weekStart = weekPickerToSundayDate(weekPicker.value);
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                weekDates.push(date);
+            }
+            
             // Show time ranges header
             renderTimeRangesHeader(timeRanges);
             
-            // Show schedule table
-            renderScheduleTable(timeRanges, roleHolders, assignments);
+            // Show schedule table with week dates
+            renderScheduleTable(timeRanges, roleHolders, assignments, weekDates);
             
             // Show notes section
             renderNotesSection(notes);
@@ -6777,7 +7022,7 @@
         }
         
         // Render schedule table with role holders x days x time ranges
-        function renderScheduleTable(timeRanges, roleHolders, assignments) {
+        function renderScheduleTable(timeRanges, roleHolders, assignments, weekDates = null) {
             const tableHead = document.getElementById('scheduleTableHead');
             const tableBody = document.getElementById('scheduleTableBody');
             const tableContainer = document.getElementById('scheduleTableContainer');
@@ -6795,11 +7040,20 @@
                     </th>
             `;
             
-            // Add headers for each day
-            daysHeb.forEach(day => {
+            // Add headers for each day with dates if available
+            daysHeb.forEach((day, index) => {
+                let headerContent = `יום ${day}`;
+                if (weekDates && weekDates[index]) {
+                    const date = weekDates[index];
+                    const dayNum = date.getDate();
+                    const month = date.getMonth() + 1;
+                    const year = date.getFullYear();
+                    headerContent = `יום ${day} ${dayNum}.${month}.${year}`;
+                }
+                
                 headerHTML += `
-                    <th style="min-width: 120px; padding: 12px 8px; border: 1px solid var(--border); text-align: center; font-weight: 600;">
-                        ${day}
+                    <th style="min-width: 140px; padding: 12px 8px; border: 1px solid var(--border); text-align: center; font-weight: 600;">
+                        ${headerContent}
                     </th>
                 `;
             });
@@ -7383,6 +7637,200 @@
                 console.error('Error updating notes:', error);
                 showToast('שגיאה בחיבור לשרת', 'error');
             }
+        }
+        
+        // Show schedule as image
+        function showScheduleAsImage() {
+            const positionSelect = document.getElementById('schedulePositionSelect');
+            const weekPicker = document.getElementById('scheduleWeekPicker');
+            
+            if (!positionSelect?.value || !weekPicker?.value || !currentScheduleData) {
+                showToast('יש לבחור עמדה ושבוע תחילה', 'error');
+                return;
+            }
+            
+            // Get position name for title
+            const positionName = positionSelect.options[positionSelect.selectedIndex].text;
+            const weekStart = weekPickerToSundayDate(weekPicker.value);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            
+            // Format date function to match table
+            const formatDate = (date) => {
+                const day = date.getDate();
+                const month = date.getMonth() + 1;
+                const year = date.getFullYear();
+                return `${day}.${month}.${year}`;
+            };
+            const weekDisplay = `${formatDate(weekStart)} - ${formatDate(weekEnd)}`;
+            
+            // Create canvas element
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match table structure exactly
+            const roleColumnWidth = 150;
+            const dayColumnWidth = 140;
+            const cellHeight = 50;
+            const headerHeight = 60;
+            const titleHeight = 50;
+            const { timeRanges, roleHolders, assignments } = currentScheduleData;
+            
+            canvas.width = roleColumnWidth + (dayColumnWidth * 7); // Role column + 7 day columns
+            canvas.height = titleHeight + headerHeight + (roleHolders.length * timeRanges.length * cellHeight) + 20;
+            
+            // Set font and styles with RTL support
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#1e293b';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.direction = 'rtl';
+            
+            // Draw title
+            ctx.fillText(`שבצ״ק - ${positionName}`, canvas.width / 2, 25);
+            ctx.font = '12px Arial';
+            ctx.fillText(`שבוע: ${weekDisplay}`, canvas.width / 2, 42);
+            
+            // Calculate week dates for headers (exactly like table)
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + i);
+                weekDates.push(date);
+            }
+            
+            // Days of week (exactly like table)
+            const daysHeb = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+            
+            // Draw table headers
+            ctx.font = 'bold 11px Arial';
+            
+            // Role holder header
+            ctx.fillStyle = '#f1f5f9';
+            ctx.fillRect(0, titleHeight, roleColumnWidth, headerHeight);
+            ctx.fillStyle = '#1e293b';
+            ctx.strokeRect(0, titleHeight, roleColumnWidth, headerHeight);
+            ctx.textAlign = 'center';
+            ctx.fillText('תפקידן', roleColumnWidth/2, titleHeight + 30);
+            
+            // Day headers with dates (RTL order: Sunday on right, Saturday on left)
+            daysHeb.forEach((day, index) => {
+                const rtlIndex = 6 - index; // Reverse for RTL: Sunday (0) becomes rightmost (6)
+                const x = roleColumnWidth + (rtlIndex * dayColumnWidth);
+                
+                // Header background
+                ctx.fillStyle = '#f1f5f9';
+                ctx.fillRect(x, titleHeight, dayColumnWidth, headerHeight);
+                ctx.fillStyle = '#1e293b';
+                ctx.strokeRect(x, titleHeight, dayColumnWidth, headerHeight);
+                
+                // Header text (exactly like table format)
+                const date = weekDates[index];
+                const dayNum = date.getDate();
+                const month = date.getMonth() + 1;
+                const year = date.getFullYear();
+                const headerContent = `יום ${day} ${dayNum}.${month}.${year}`;
+                
+                ctx.textAlign = 'center';
+                ctx.font = 'bold 10px Arial';
+                ctx.fillText(headerContent, x + dayColumnWidth/2, titleHeight + 30);
+            });
+            
+            // Draw schedule grid (exactly like table)
+            let rowIndex = 0;
+            roleHolders.forEach(roleHolder => {
+                timeRanges.forEach(timeRange => {
+                    const y = titleHeight + headerHeight + (rowIndex * cellHeight);
+                    
+                    // Draw role holder cell (exactly like table)
+                    ctx.fillStyle = rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc';
+                    ctx.fillRect(0, y, roleColumnWidth, cellHeight);
+                    ctx.fillStyle = '#1e293b';
+                    ctx.strokeRect(0, y, roleColumnWidth, cellHeight);
+                    
+                    // Role holder name and time (exactly like table)
+                    ctx.font = 'bold 11px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(roleHolder.name, roleColumnWidth/2, y + 18);
+                    ctx.font = '10px Arial';
+                    ctx.fillText(`${timeRange.start.slice(0,5)}-${timeRange.end.slice(0,5)}`, roleColumnWidth/2, y + 32);
+                    
+                    // Draw day cells (RTL order: Sunday on right, Saturday on left)
+                    for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+                        const rtlIndex = 6 - dayIndex; // Reverse for RTL
+                        const x = roleColumnWidth + (rtlIndex * dayColumnWidth);
+                        
+                        // Find assignment for this slot (exactly like table)
+                        const assignment = assignments.find(a => 
+                            a.role_id === roleHolder.id && 
+                            a.day_of_week === dayIndex && 
+                            a.time_block_id === timeRange.id
+                        );
+                        
+                        // Draw cell background
+                        ctx.fillStyle = rowIndex % 2 === 0 ? '#ffffff' : '#f8fafc';
+                        ctx.fillRect(x, y, dayColumnWidth, cellHeight);
+                        ctx.fillStyle = '#1e293b';
+                        ctx.strokeRect(x, y, dayColumnWidth, cellHeight);
+                        
+                        // Draw assignment (exactly like table uses assignment.full_name)
+                        if (assignment && assignment.full_name) {
+                            // Green background for assigned slots
+                            ctx.fillStyle = '#22c55e';
+                            const textWidth = ctx.measureText(assignment.full_name).width + 16;
+                            const textHeight = 20;
+                            const textX = x + (dayColumnWidth - textWidth) / 2;
+                            const textY = y + (cellHeight - textHeight) / 2;
+                            
+                            ctx.fillRect(textX, textY, textWidth, textHeight);
+                            
+                            // White text
+                            ctx.fillStyle = '#ffffff';
+                            ctx.font = '10px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(assignment.full_name, x + dayColumnWidth/2, y + cellHeight/2 + 4);
+                        }
+                    }
+                    
+                    rowIndex++;
+                });
+            });
+            
+            // Show image in modal
+            const modal = document.getElementById('genericModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            
+            modalTitle.textContent = `שבצ״ק - ${positionName} (${weekDisplay})`;
+            
+            // Convert canvas to image and display
+            const imageUrl = canvas.toDataURL('image/png');
+            modalBody.innerHTML = `
+                <div style="text-align: center;">
+                    <img src="${imageUrl}" style="max-width: 100%; border: 1px solid var(--border); border-radius: 8px;">
+                    <div style="margin-top: 16px; display: flex; gap: 12px; justify-content: center;">
+                        <button class="btn btn-primary" onclick="downloadScheduleImage('${imageUrl}', '${positionName}', '${weekDisplay}')">
+                            📥 הורד תמונה
+                        </button>
+                        <button class="btn btn-secondary" onclick="closeModal()">
+                            סגור
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        // Download schedule image
+        function downloadScheduleImage(imageUrl, positionName, weekDisplay) {
+            const link = document.createElement('a');
+            link.download = `שבצק_${positionName}_${weekDisplay}.png`;
+            link.href = imageUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
         
         // Show schedule states
