@@ -316,9 +316,7 @@ app.post('/api/departments', (req, res) => {
         return res.status(400).json({ error: 'Department name is required' });
     }
     
-    if (!commander_id) {
-        return res.status(400).json({ error: 'Department commander is required' });
-    }
+    // Commander is now optional - can be null
     
     // soldierIds can be empty if we only have a commander
     
@@ -346,49 +344,70 @@ app.post('/api/departments', (req, res) => {
                 
                 const departmentId = this.lastID;
                 
-                // Assign personnel to department
-                const updatePromises = [];
-                
-                // Assign commander if provided
-                if (commander_id) {
-                    updatePromises.push(
-                        new Promise((resolve, reject) => {
-                            db.run('UPDATE personnel SET department_id = ?, is_commander = 1 WHERE id = ?', 
-                                [departmentId, commander_id], (err) => {
-                                if (err) reject(err);
-                                else resolve();
-                            });
-                        })
-                    );
-                }
-                
-                // Assign soldiers if provided
+                // Collect all personnel IDs that will be assigned to this department
+                const allPersonnelIds = [];
+                if (commander_id) allPersonnelIds.push(commander_id);
                 if (soldierIdsList && soldierIdsList.length > 0) {
-                    soldierIdsList.filter(s => s !== commander_id).forEach(soldierID => {
-                        updatePromises.push(
-                            new Promise((resolve, reject) => {
-                                db.run('UPDATE personnel SET department_id = ?, is_commander = 0 WHERE id = ?', 
-                                    [departmentId, soldierID], (err) => {
-                                    if (err) reject(err);
-                                    else resolve();
-                                });
-                            })
-                        );
-                    });
+                    allPersonnelIds.push(...soldierIdsList.filter(s => s !== commander_id));
                 }
                 
-                // Execute all personnel updates
-                if (updatePromises.length > 0) {
-                    Promise.all(updatePromises)
-                        .then(() => {
-                            db.run('COMMIT');
-                            res.json({ id: departmentId, message: 'Department created successfully' });
-                        })
-                        .catch(err => {
-                            db.run('ROLLBACK');
-                            res.status(500).json({ error: err.message });
+                // First, remove all these people from ANY other departments (one-department-only rule)
+                const removalPromises = allPersonnelIds.map(personId => {
+                    return new Promise((resolve, reject) => {
+                        db.run('UPDATE personnel SET department_id = NULL, is_commander = 0 WHERE id = ?', 
+                            [personId], (err) => {
+                            if (err) reject(err);
+                            else resolve();
                         });
-                } else {
+                    });
+                });
+                
+                // Wait for all removals to complete, then assign to new department
+                Promise.all(removalPromises)
+                    .then(() => {
+                        const assignmentPromises = [];
+                        
+                        // Assign commander if provided
+                        if (commander_id) {
+                            assignmentPromises.push(
+                                new Promise((resolve, reject) => {
+                                    db.run('UPDATE personnel SET department_id = ?, is_commander = 1 WHERE id = ?', 
+                                        [departmentId, commander_id], (err) => {
+                                        if (err) reject(err);
+                                        else resolve();
+                                    });
+                                })
+                            );
+                        }
+                        
+                        // Assign soldiers if provided
+                        if (soldierIdsList && soldierIdsList.length > 0) {
+                            soldierIdsList.filter(s => s !== commander_id).forEach(soldierID => {
+                                assignmentPromises.push(
+                                    new Promise((resolve, reject) => {
+                                        db.run('UPDATE personnel SET department_id = ?, is_commander = 0 WHERE id = ?', 
+                                            [departmentId, soldierID], (err) => {
+                                            if (err) reject(err);
+                                            else resolve();
+                                        });
+                                    })
+                                );
+                            });
+                        }
+                        
+                        return Promise.all(assignmentPromises);
+                    })
+                    .then(() => {
+                        db.run('COMMIT');
+                        res.json({ id: departmentId, message: 'Department created successfully' });
+                    })
+                    .catch(err => {
+                        db.run('ROLLBACK');
+                        res.status(500).json({ error: err.message });
+                    });
+                
+                // If no personnel to assign, just commit
+                if (allPersonnelIds.length === 0) {
                     db.run('COMMIT');
                     res.json({ id: departmentId, message: 'Department created successfully' });
                 }
@@ -419,20 +438,21 @@ app.get('/api/departments/:id', (req, res) => {
         
         // Get all personnel in this department
         const membersQuery = `
-            SELECT id, full_name, rank, personal_number, is_commander
+            SELECT id, full_name, rank, personal_number,
+                   CASE WHEN id = ? THEN 1 ELSE 0 END as is_commander
             FROM personnel 
             WHERE department_id = ?
             ORDER BY is_commander DESC, full_name
         `;
         
-        db.all(membersQuery, [departmentId], (err, members) => {
+        db.all(membersQuery, [department.commander_id, departmentId], (err, members) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
             
             // Separate commander and soldiers
             const commander = members.find(m => m.is_commander === 1);
-            const soldiers = members.filter(m => m.id !== department.commander_id); // Exclude commander from soldiers list
+            const soldiers = members.filter(m => m.is_commander === 0); // Only non-commanders
             
             res.json({
                 ...department,
@@ -455,9 +475,7 @@ app.put('/api/departments/:id', (req, res) => {
         return res.status(400).json({ error: 'Department name is required' });
     }
     
-    if (!actualCommanderId) {
-        return res.status(400).json({ error: 'Department commander is required' });
-    }
+    // Commander is now optional - can be null
     
     // soldierIds can be empty if we only have a commander
     
@@ -501,23 +519,60 @@ app.put('/api/departments/:id', (req, res) => {
                         return res.status(500).json({ error: err.message });
                     }
                     
-                    // Assign commander and soldiers to department
-                    const allPersonnel = actualCommanderId ? [actualCommanderId] : [];
+                    // Collect all personnel IDs that will be assigned to this department
+                    const allPersonnelIds = [];
+                    if (actualCommanderId) allPersonnelIds.push(actualCommanderId);
                     if (soldierIdsList && soldierIdsList.length > 0) {
-                        allPersonnel.push(...soldierIdsList.filter(s => s !== actualCommanderId));
+                        allPersonnelIds.push(...soldierIdsList.filter(s => s !== actualCommanderId));
                     }
                     
-                    if (allPersonnel.length > 0) {
-                        const updatePromises = allPersonnel.map(personId => 
-                            new Promise((resolve, reject) => {
-                                db.run('UPDATE personnel SET department_id = ? WHERE id = ?', [req.params.id, personId], (err) => {
+                    if (allPersonnelIds.length > 0) {
+                        // First, remove all these people from ANY other departments (one-department-only rule)
+                        const removalPromises = allPersonnelIds.map(personId => {
+                            return new Promise((resolve, reject) => {
+                                db.run('UPDATE personnel SET department_id = NULL, is_commander = 0 WHERE id = ?', 
+                                    [personId], (err) => {
                                     if (err) reject(err);
                                     else resolve();
                                 });
-                            })
-                        );
+                            });
+                        });
                         
-                        Promise.all(updatePromises)
+                        // Wait for all removals to complete, then assign to this department
+                        Promise.all(removalPromises)
+                            .then(() => {
+                                const assignmentPromises = [];
+                                
+                                // Assign commander if provided
+                                if (actualCommanderId) {
+                                    assignmentPromises.push(
+                                        new Promise((resolve, reject) => {
+                                            db.run('UPDATE personnel SET department_id = ?, is_commander = 1 WHERE id = ?', 
+                                                [req.params.id, actualCommanderId], (err) => {
+                                                if (err) reject(err);
+                                                else resolve();
+                                            });
+                                        })
+                                    );
+                                }
+                                
+                                // Assign soldiers if provided
+                                if (soldierIdsList && soldierIdsList.length > 0) {
+                                    soldierIdsList.filter(s => s !== actualCommanderId).forEach(soldierID => {
+                                        assignmentPromises.push(
+                                            new Promise((resolve, reject) => {
+                                                db.run('UPDATE personnel SET department_id = ?, is_commander = 0 WHERE id = ?', 
+                                                    [req.params.id, soldierID], (err) => {
+                                                    if (err) reject(err);
+                                                    else resolve();
+                                                });
+                                            })
+                                        );
+                                    });
+                                }
+                                
+                                return Promise.all(assignmentPromises);
+                            })
                             .then(() => {
                                 db.run('COMMIT');
                                 res.json({ message: 'Department updated successfully' });
@@ -1572,28 +1627,93 @@ app.put('/api/positions/:id', (req, res) => {
 
 // DELETE position
 app.delete('/api/positions/:id', (req, res) => {
-    // First check if any roles are assigned to this position
-    db.get('SELECT COUNT(*) as count FROM roles WHERE position_id = ?', [req.params.id], (err, row) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+    const positionId = req.params.id;
+    
+    // Use transaction for cascade deletion
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
         
-        if (row.count > 0) {
-            return res.status(400).json({ 
-                error: 'Cannot delete position - there are role-holders assigned to it',
-                assigned_count: row.count 
-            });
-        }
-        
-        // Safe to delete
-        db.run('DELETE FROM positions WHERE id = ?', [req.params.id], function(err) {
+        // Step 1: Delete assignments related to this position's roles
+        db.run(`
+            DELETE FROM assignments 
+            WHERE role_id IN (SELECT id FROM roles WHERE position_id = ?)
+        `, [positionId], function(err) {
             if (err) {
-                res.status(500).json({ error: err.message });
-            } else if (this.changes === 0) {
-                res.status(404).json({ error: 'Position not found' });
-            } else {
-                res.json({ message: 'Position deleted successfully' });
+                db.run('ROLLBACK');
+                return res.status(500).json({ error: 'Failed to delete assignments: ' + err.message });
             }
+            
+            const deletedAssignments = this.changes;
+            
+            // Step 2: Delete time blocks related to this position's schedule weeks
+            db.run(`
+                DELETE FROM time_blocks 
+                WHERE schedule_week_id IN (SELECT id FROM schedule_weeks WHERE position_id = ?)
+            `, [positionId], function(err) {
+                if (err) {
+                    db.run('ROLLBACK');
+                    return res.status(500).json({ error: 'Failed to delete time blocks: ' + err.message });
+                }
+                
+                const deletedTimeBlocks = this.changes;
+                
+                // Step 3: Delete schedule weeks for this position
+                db.run('DELETE FROM schedule_weeks WHERE position_id = ?', [positionId], function(err) {
+                    if (err) {
+                        db.run('ROLLBACK');
+                        return res.status(500).json({ error: 'Failed to delete schedule weeks: ' + err.message });
+                    }
+                    
+                    const deletedScheduleWeeks = this.changes;
+                    
+                    // Step 4: Delete role_skills for roles in this position
+                    db.run(`
+                        DELETE FROM role_skills 
+                        WHERE role_id IN (SELECT id FROM roles WHERE position_id = ?)
+                    `, [positionId], function(err) {
+                        if (err) {
+                            db.run('ROLLBACK');
+                            return res.status(500).json({ error: 'Failed to delete role skills: ' + err.message });
+                        }
+                        
+                        const deletedRoleSkills = this.changes;
+                        
+                        // Step 5: Delete roles for this position
+                        db.run('DELETE FROM roles WHERE position_id = ?', [positionId], function(err) {
+                            if (err) {
+                                db.run('ROLLBACK');
+                                return res.status(500).json({ error: 'Failed to delete roles: ' + err.message });
+                            }
+                            
+                            const deletedRoles = this.changes;
+                            
+                            // Step 6: Finally delete the position itself
+                            db.run('DELETE FROM positions WHERE id = ?', [positionId], function(err) {
+                                if (err) {
+                                    db.run('ROLLBACK');
+                                    return res.status(500).json({ error: 'Failed to delete position: ' + err.message });
+                                } else if (this.changes === 0) {
+                                    db.run('ROLLBACK');
+                                    return res.status(404).json({ error: 'Position not found' });
+                                } else {
+                                    db.run('COMMIT');
+                                    res.status(204).json({
+                                        message: 'Position and all related data deleted successfully',
+                                        deleted: {
+                                            position: 1,
+                                            roles: deletedRoles,
+                                            assignments: deletedAssignments,
+                                            timeBlocks: deletedTimeBlocks,
+                                            scheduleWeeks: deletedScheduleWeeks,
+                                            roleSkills: deletedRoleSkills
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                    });
+                });
+            });
         });
     });
 });
@@ -1766,7 +1886,7 @@ app.delete('/api/positions/:position_id/roles/:id', (req, res) => {
 
 // GET constraints with filtering
 app.get('/api/constraints', (req, res) => {
-    const { departmentId, weekStart, department, week } = req.query;
+    const { departmentId, weekStart, department, week, person_id, date } = req.query;
     
     // Support both parameter names for flexibility
     const deptId = departmentId || department;
@@ -1793,6 +1913,18 @@ app.get('/api/constraints', (req, res) => {
         
         query += ' AND c.date BETWEEN ? AND ?';
         params.push(weekStartDate, endDate.toISOString().split('T')[0]);
+    }
+    
+    // Add person_id filter for per-person constraint checking
+    if (person_id) {
+        query += ' AND c.person_id = ?';
+        params.push(person_id);
+    }
+    
+    // Add specific date filter 
+    if (date) {
+        query += ' AND c.date = ?';
+        params.push(date);
     }
     
     query += ' ORDER BY c.date, p.full_name';
@@ -2216,14 +2348,14 @@ app.delete('/api/time-ranges/:id', (req, res) => {
 
 // POST create assignment
 app.post('/api/assignments', (req, res) => {
-    const { positionId, weekStart, roleHolderId, date, start, end, personnelId } = req.body;
+    const { positionId, weekStart, roleHolderId, date, start, end, personnelId, dayOfWeek } = req.body;
     
     if (!positionId || !weekStart || !roleHolderId || !date || !start || !end || !personnelId) {
         return res.status(400).json({ error: 'All fields are required' });
     }
     
-    // Convert date to day of week (0=Sunday)
-    const dayOfWeek = new Date(date).getDay();
+    // Use dayOfWeek from frontend if provided, otherwise calculate from date
+    const actualDayOfWeek = dayOfWeek !== undefined ? dayOfWeek : new Date(date).getDay();
     
     // Get time block ID
     db.get(`
@@ -2242,7 +2374,7 @@ app.post('/api/assignments', (req, res) => {
         
         // Check for existing assignment in this slot
         db.get('SELECT id FROM assignments WHERE time_block_id = ? AND role_id = ? AND day_of_week = ?', 
-            [timeBlock.id, roleHolderId, dayOfWeek], (err, existing) => {
+            [timeBlock.id, roleHolderId, actualDayOfWeek], (err, existing) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
@@ -2255,7 +2387,7 @@ app.post('/api/assignments', (req, res) => {
             
             // Create assignment
             db.run('INSERT INTO assignments (time_block_id, role_id, day_of_week, person_id) VALUES (?, ?, ?, ?)',
-                [timeBlock.id, roleHolderId, dayOfWeek, personnelId], function(err) {
+                [timeBlock.id, roleHolderId, actualDayOfWeek, personnelId], function(err) {
                 if (err) {
                     return res.status(500).json({ error: err.message });
                 }
@@ -2338,6 +2470,11 @@ app.put('/api/schedule/notes', (req, res) => {
 // Serve the main HTML file
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+// Handle favicon.ico requests
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
 });
 
 // Start server
