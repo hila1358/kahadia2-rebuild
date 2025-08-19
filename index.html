@@ -766,6 +766,7 @@
             border: 1px solid rgba(102, 126, 234, 0.3);
         }
 
+
         /* Department Card */
         .department-card {
             background: var(--bg-primary);
@@ -1207,6 +1208,16 @@
 
                 <!-- Personnel Section -->
                 <section id="personnel" class="page-section">
+                    <div class="action-row">
+                        <button class="btn btn-primary" onclick="showPersonnelModal()">
+                            <span>➕</span>
+                            <span>הוסף תיק אישי</span>
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportPersonnelToExcel()">
+                            <span>📊</span>
+                            <span>ייצא נתונים</span>
+                        </button>
+                    </div>
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">תיקים אישיים</h2>
@@ -1588,6 +1599,9 @@
                                     <label class="form-label">מחלקה *</label>
                                     <select class="form-select" id="constraintDepartmentSelect" onchange="loadConstraintsForDepartment()">
                                         <option value="">בחר מחלקה</option>
+                                        <option value="מוקד תקשורת">מוקד תקשורת</option>
+                                        <option value="חמ״ל מבצעים">חמ״ל מבצעים</option>
+                                        <option value="אבטחת מידע">אבטחת מידע</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -1651,12 +1665,20 @@
                     <div class="card">
                         <div class="card-header">
                             <h2 class="card-title">בניית שבצ״ק - תכנון שבועי לפי עמדה</h2>
-                            <div class="action-row">
+                            <div class="action-row" style="flex-direction: row;">
                                 <select class="form-select" id="schedulePositionSelect" onchange="loadScheduleData()" style="max-width: 200px;">
-                                    <option value="">בחר עמדה</option>
+                                    <option value="">בחירת עמדה</option>
+                                    <option value="מוקד תקשורת">מוקד תקשורת</option>
+                                    <option value="חמ״ל מבצעים">חמ״ל מבצעים</option>
+                                    <option value="אבטחת מידע">אבטחת מידע</option>
                                 </select>
-                                <input type="week" class="form-input" id="scheduleWeekPicker" onchange="loadScheduleData()" style="max-width: 200px;">
-                                <button class="btn btn-primary" id="showImageBtn" onclick="showScheduleAsImage()" style="max-width: 150px;">📷 הצג כתמונה</button>
+                                <div style="position: relative; max-width: 200px;">
+                                    <input type="week" class="form-input" id="scheduleWeekPicker" onchange="loadScheduleData(); updateWeekDisplay()" style="width: 100%;" placeholder="בחירת שבוע">
+                                    <div id="weekDisplayHelper" style="font-size: 10px; color: var(--text-muted); margin-top: 2px; display: none;">
+                                        השבוע יוצג: ראשון-שבת
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" id="showImageBtn" onclick="showScheduleAsImage()" style="max-width: 150px;">הצגה כתמונה</button>
                             </div>
                         </div>
                         <!-- Time Ranges Header -->
@@ -5804,31 +5826,65 @@
             const sunday = new Date(now);
             sunday.setDate(now.getDate() - now.getDay()); // Sunday is day 0
             
-            // Use ISO week calculation but adjust for Sunday start
-            const year = sunday.getFullYear();
-            const startOfYear = new Date(year, 0, 1);
-            const dayOfYear = Math.floor((sunday - startOfYear) / (24 * 60 * 60 * 1000)) + 1;
-            const weekNumber = Math.ceil(dayOfYear / 7);
+            // Get Monday of the same week (add 1 day to Sunday)
+            const monday = new Date(sunday);
+            monday.setDate(sunday.getDate() + 1);
+            
+            // Calculate ISO week number for this Monday
+            const year = monday.getFullYear();
+            const jan4 = new Date(year, 0, 4);
+            const firstMondayOfYear = new Date(jan4);
+            firstMondayOfYear.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7);
+            
+            const weekNumber = Math.floor((monday - firstMondayOfYear) / (7 * 24 * 60 * 60 * 1000)) + 1;
             
             return `${year}-W${weekNumber.toString().padStart(2, '0')}`;
         }
 
         // Convert week picker value (YYYY-Www) to Sunday date (Sunday start)
         function weekPickerToSundayDate(weekPickerValue) {
-            const [year, week] = weekPickerValue.split('-W');
+            const [year, weekStr] = weekPickerValue.split('-W');
+            const week = parseInt(weekStr);
             
-            // Calculate the Sunday for the given week number
-            const startOfYear = new Date(parseInt(year), 0, 1);
-            const daysToAdd = (parseInt(week) - 1) * 7;
-            const targetDate = new Date(startOfYear);
-            targetDate.setDate(startOfYear.getDate() + daysToAdd);
+            // Create date for January 4th of the given year (always in first week of ISO year)
+            const jan4 = new Date(parseInt(year), 0, 4);
             
-            // Adjust to Sunday of that week
-            const dayOfWeek = targetDate.getDay();
-            const sunday = new Date(targetDate);
-            sunday.setDate(targetDate.getDate() - dayOfWeek);
+            // Find the Monday of the first ISO week
+            const firstMondayOfYear = new Date(jan4);
+            firstMondayOfYear.setDate(jan4.getDate() - (jan4.getDay() + 6) % 7);
             
-            return sunday;
+            // Calculate the Monday of the selected ISO week
+            const mondayOfSelectedWeek = new Date(firstMondayOfYear);
+            mondayOfSelectedWeek.setDate(firstMondayOfYear.getDate() + (week - 1) * 7);
+            
+            // Convert to Sunday (subtract 1 day to get Sunday of same week)
+            const sundayOfSelectedWeek = new Date(mondayOfSelectedWeek);
+            sundayOfSelectedWeek.setDate(mondayOfSelectedWeek.getDate() - 1);
+            
+            return sundayOfSelectedWeek;
+        }
+
+        // Update week display helper
+        function updateWeekDisplay() {
+            const weekPicker = document.getElementById('scheduleWeekPicker');
+            const helper = document.getElementById('weekDisplayHelper');
+            
+            if (weekPicker.value && helper) {
+                const sunday = weekPickerToSundayDate(weekPicker.value);
+                const saturday = new Date(sunday);
+                saturday.setDate(sunday.getDate() + 6);
+                
+                const formatDate = (date) => {
+                    const day = date.getDate();
+                    const month = date.getMonth() + 1;
+                    return `${day}.${month}`;
+                };
+                
+                helper.textContent = `השבוע יוצג: ${formatDate(sunday)}-${formatDate(saturday)} (ראשון-שבת)`;
+                helper.style.display = 'block';
+            } else if (helper) {
+                helper.style.display = 'none';
+            }
         }
 
         // Load departments for constraints selector
@@ -6822,6 +6878,10 @@
             
             initNavigation();
             
+            // Load positions for schedule dropdown immediately on page load
+            console.log('Loading positions for schedule...');
+            loadPositionsForSchedule();
+            
             // Add a test button for debugging
             document.body.addEventListener('click', (e) => {
                 console.log('Click detected on:', e.target.tagName, e.target.className, e.target);
@@ -6887,7 +6947,7 @@
                     const positions = await response.json();
                     const select = document.getElementById('schedulePositionSelect');
                     if (select) {
-                        select.innerHTML = '<option value="">בחר עמדה</option>' + 
+                        select.innerHTML = '<option value="">בחירת עמדה</option>' + 
                             positions.map(pos => `<option value="${pos.id}">${pos.name}</option>`).join('');
                     }
                     
@@ -7714,9 +7774,11 @@
             ctx.textAlign = 'center';
             ctx.fillText('תפקידן', roleColumnWidth/2, titleHeight + 30);
             
-            // Day headers with dates (RTL order: Sunday on right, Saturday on left)
+            // Day headers with dates (RTL: Sunday rightmost, Saturday leftmost)
             daysHeb.forEach((day, index) => {
-                const rtlIndex = 6 - index; // Reverse for RTL: Sunday (0) becomes rightmost (6)
+                // In RTL table: Sunday appears rightmost, Saturday leftmost
+                // For canvas to match: reverse the positioning
+                const rtlIndex = 6 - index; // Sunday (0) → position 6 (rightmost)
                 const x = roleColumnWidth + (rtlIndex * dayColumnWidth);
                 
                 // Header background
@@ -7756,9 +7818,10 @@
                     ctx.font = '10px Arial';
                     ctx.fillText(`${timeRange.start.slice(0,5)}-${timeRange.end.slice(0,5)}`, roleColumnWidth/2, y + 32);
                     
-                    // Draw day cells (RTL order: Sunday on right, Saturday on left)
+                    // Draw day cells (RTL: Sunday rightmost, Saturday leftmost)
                     for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-                        const rtlIndex = 6 - dayIndex; // Reverse for RTL
+                        // For canvas RTL: reverse positioning to match table
+                        const rtlIndex = 6 - dayIndex; // Sunday (0) → position 6 (rightmost)
                         const x = roleColumnWidth + (rtlIndex * dayColumnWidth);
                         
                         // Find assignment for this slot (exactly like table)
@@ -7865,6 +7928,392 @@
                     break;
             }
         }
+        
+        // Live row update functions for Personnel table
+        function updatePersonnelRowInPlace(personId, updatedData) {
+            const tbody = document.getElementById('personnelTable');
+            if (!tbody) return;
+            
+            // Find the row by looking for the person's data (using personal number as unique identifier)
+            const rows = tbody.querySelectorAll('tr');
+            let targetRow = null;
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length > 2) {
+                    // Personal number is now at index 2 (after checkbox and name)
+                    const personalNumber = cells[2].textContent.trim();
+                    if (updatedData.personal_number && personalNumber === updatedData.personal_number) {
+                        targetRow = row;
+                    }
+                }
+            });
+            
+            if (!targetRow) return;
+            
+            const cells = targetRow.querySelectorAll('td');
+            if (cells.length < 12) return;
+            
+            // Update specific columns based on what was changed (adjusted for checkbox column)
+            if (updatedData.qualifications !== undefined) {
+                // Update qualifications column (index 7 - after checkbox, name, number, rank, branch, department, population)
+                const qualificationsHtml = Array.isArray(updatedData.qualifications) 
+                    ? updatedData.qualifications.map(q => `<span class="qualification-chip">${q}</span>`).join(' ')
+                    : updatedData.qualifications;
+                cells[7].textContent = qualificationsHtml; // Use textContent for now, can add styling later
+            }
+            
+            if (updatedData.department_name !== undefined) {
+                // Update department column (index 5 - after checkbox, name, number, rank, branch)
+                cells[5].textContent = updatedData.department_name;
+            }
+            
+            if (updatedData.population_name !== undefined) {
+                // Update population column (index 6 - after checkbox, name, number, rank, branch, department)
+                cells[6].textContent = updatedData.population_name;
+            }
+            
+            // Add visual feedback - highlight the updated row briefly
+            targetRow.style.backgroundColor = 'var(--success-light, #d1f2eb)';
+            setTimeout(() => {
+                targetRow.style.backgroundColor = '';
+            }, 2000);
+        }
+        
+        function showSuccessToast(message) {
+            // Create toast element if it doesn't exist
+            let toast = document.getElementById('successToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'successToast';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #22c55e;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 1000;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                    max-width: 300px;
+                `;
+                document.body.appendChild(toast);
+            }
+            
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+        
+        function showErrorToast(message) {
+            // Create error toast element if it doesn't exist
+            let toast = document.getElementById('errorToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'errorToast';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ef4444;
+                    color: white;
+                    padding: 12px 20px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+                    z-index: 1000;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                    max-width: 300px;
+                `;
+                document.body.appendChild(toast);
+            }
+            
+            toast.textContent = message;
+            toast.style.opacity = '1';
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+            }, 4000);
+        }
+        
+        // Bulk actions with live updates
+        async function bulkAddToPopulation() {
+            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
+            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
+                const row = cb.closest('tr');
+                const cells = row.querySelectorAll('td');
+                return {
+                    personalNumber: cells[2].textContent.trim(), // personal number column (after checkbox and name)
+                    fullName: cells[1].textContent.trim() // name column (after checkbox)
+                };
+            });
+            
+            if (selectedPersons.length === 0) {
+                showErrorToast('אנא בחר לפחות איש אחד');
+                return;
+            }
+            
+            // Show population selection modal (simplified version)
+            const newPopulation = prompt('הכנס שם אוכלוסייה חדשה:');
+            if (!newPopulation) return;
+            
+            try {
+                // Simulate API call
+                console.log('Adding population to:', selectedPersons, 'Population:', newPopulation);
+                
+                // Update each selected person's row
+                selectedPersons.forEach(person => {
+                    updatePersonnelRowInPlace(person.personalNumber, {
+                        personal_number: person.personalNumber,
+                        population_name: newPopulation
+                    });
+                });
+                
+                showSuccessToast(`אוכלוסייה "${newPopulation}" נוספה ל-${selectedPersons.length} אנשים`);
+                
+                // Clear selections
+                selectedCheckboxes.forEach(cb => cb.checked = false);
+                document.getElementById('personnelBulkActions').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error adding population:', error);
+                showErrorToast('שגיאה בהוספת אוכלוסייה');
+            }
+        }
+        
+        async function bulkAddToDepartment() {
+            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
+            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
+                const row = cb.closest('tr');
+                const cells = row.querySelectorAll('td');
+                return {
+                    personalNumber: cells[2].textContent.trim(), // personal number after checkbox and name
+                    fullName: cells[1].textContent.trim() // name after checkbox
+                };
+            });
+            
+            if (selectedPersons.length === 0) {
+                showErrorToast('אנא בחר לפחות איש אחד');
+                return;
+            }
+            
+            const newDepartment = prompt('הכנס שם מחלקה חדשה:');
+            if (!newDepartment) return;
+            
+            try {
+                console.log('Adding to department:', selectedPersons, 'Department:', newDepartment);
+                
+                selectedPersons.forEach(person => {
+                    updatePersonnelRowInPlace(person.personalNumber, {
+                        personal_number: person.personalNumber,
+                        department_name: newDepartment
+                    });
+                });
+                
+                showSuccessToast(`מחלקה "${newDepartment}" נוספה ל-${selectedPersons.length} אנשים`);
+                
+                selectedCheckboxes.forEach(cb => cb.checked = false);
+                document.getElementById('personnelBulkActions').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error adding to department:', error);
+                showErrorToast('שגיאה בהוספה למחלקה');
+            }
+        }
+        
+        async function bulkAddQualification() {
+            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
+            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
+                const row = cb.closest('tr');
+                const cells = row.querySelectorAll('td');
+                return {
+                    personalNumber: cells[2].textContent.trim(), // personal number after checkbox and name
+                    fullName: cells[1].textContent.trim(), // name after checkbox
+                    currentQualifications: cells[7].textContent.trim() // qualifications column
+                };
+            });
+            
+            if (selectedPersons.length === 0) {
+                showErrorToast('אנא בחר לפחות איש אחד');
+                return;
+            }
+            
+            const newQualification = prompt('הכנס כשירות חדשה:');
+            if (!newQualification) return;
+            
+            try {
+                console.log('Adding qualification:', selectedPersons, 'Qualification:', newQualification);
+                
+                selectedPersons.forEach(person => {
+                    // Add new qualification to existing ones
+                    const existingQuals = person.currentQualifications ? person.currentQualifications.split(',').map(q => q.trim()) : [];
+                    if (!existingQuals.includes(newQualification)) {
+                        existingQuals.push(newQualification);
+                    }
+                    
+                    updatePersonnelRowInPlace(person.personalNumber, {
+                        personal_number: person.personalNumber,
+                        qualifications: existingQuals.join(', ')
+                    });
+                });
+                
+                showSuccessToast(`כשירות "${newQualification}" נוספה ל-${selectedPersons.length} אנשים`);
+                
+                selectedCheckboxes.forEach(cb => cb.checked = false);
+                document.getElementById('personnelBulkActions').style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error adding qualification:', error);
+                showErrorToast('שגיאה בהוספת כשירות');
+            }
+        }
+        
+        // Function to handle checkbox selections and show/hide bulk actions
+        function toggleSelectAllPersonnel() {
+            const selectAll = document.getElementById('selectAllPersonnel');
+            const checkboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]');
+            
+            checkboxes.forEach(cb => {
+                cb.checked = selectAll.checked;
+            });
+            
+            updateBulkActionsVisibility();
+        }
+        
+        function updateBulkActionsVisibility() {
+            const checkedBoxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
+            const bulkActions = document.getElementById('personnelBulkActions');
+            const countSpan = document.getElementById('selectedPersonnelCount');
+            
+            if (checkedBoxes.length > 0) {
+                bulkActions.style.display = 'block';
+                countSpan.textContent = `${checkedBoxes.length} נבחרו`;
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+        
+        // Individual person edit functions
+        function showEditPersonModal(personalNumber) {
+            // Find the person data from the table
+            const tbody = document.getElementById('personnelTable');
+            const rows = tbody.querySelectorAll('tr');
+            let personData = null;
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length > 2 && cells[2].textContent.trim() === personalNumber) {
+                    personData = {
+                        personalNumber: cells[2].textContent.trim(),
+                        fullName: cells[1].textContent.trim(),
+                        rank: cells[3].textContent.trim(),
+                        branch: cells[4].textContent.trim(),
+                        department: cells[5].textContent.trim(),
+                        population: cells[6].textContent.trim(),
+                        qualifications: cells[7].textContent.trim(),
+                        residence: cells[8].textContent.trim()
+                    };
+                }
+            });
+            
+            if (!personData) return;
+            
+            // Create and show modal
+            const modal = document.createElement('div');
+            modal.id = 'editPersonModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: var(--bg-primary); border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 20px 0;">עריכת ${personData.fullName}</h3>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">מחלקה:</label>
+                        <input type="text" id="editDepartment" value="${personData.department}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">אוכלוסייה:</label>
+                        <input type="text" id="editPopulation" value="${personData.population}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500;">כשירויות (מופרדות בפסיק):</label>
+                        <input type="text" id="editQualifications" value="${personData.qualifications}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button onclick="closeEditPersonModal()" style="padding: 8px 16px; border: 1px solid var(--border); background: var(--bg-secondary); border-radius: 4px; cursor: pointer;">
+                            ביטול
+                        </button>
+                        <button onclick="savePersonEdits('${personalNumber}')" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            שמור שינויים
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+        
+        function closeEditPersonModal() {
+            const modal = document.getElementById('editPersonModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        async function savePersonEdits(personalNumber) {
+            const department = document.getElementById('editDepartment').value.trim();
+            const population = document.getElementById('editPopulation').value.trim();
+            const qualifications = document.getElementById('editQualifications').value.trim();
+            
+            try {
+                // Simulate API call
+                console.log('Saving person edits:', {
+                    personalNumber,
+                    department,
+                    population,
+                    qualifications
+                });
+                
+                // Update the row in place
+                const updatedData = {
+                    personal_number: personalNumber
+                };
+                
+                if (department) updatedData.department_name = department;
+                if (population) updatedData.population_name = population;
+                if (qualifications) updatedData.qualifications = qualifications;
+                
+                updatePersonnelRowInPlace(personalNumber, updatedData);
+                
+                showSuccessToast('השינויים נשמרו בהצלחה');
+                closeEditPersonModal();
+                
+            } catch (error) {
+                console.error('Error saving person edits:', error);
+                showErrorToast('שגיאה בשמירת השינויים');
+            }
+        }
+        
     </script>
 </body>
 </html>
