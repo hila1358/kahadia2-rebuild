@@ -17,4 +17,4 @@ ENV NODE_ENV=production
 EXPOSE 3000 3001
 
 # ברירת מחדל; ה-compose יחליף את ה-Command לכל שירות
-CMD ["npm","run","start"]
+CMD ["node","server.js"]

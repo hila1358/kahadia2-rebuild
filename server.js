@@ -283,6 +283,56 @@ app.post('/api/personnel/batch/department', (req, res) => {
     });
 });
 
+// POST batch add skills to personnel  
+app.post('/api/personnel/batch-skills', (req, res) => {
+    const { ids, skillIds } = req.body;
+    
+    if (!ids || !Array.isArray(ids) || ids.length === 0 || !skillIds || !Array.isArray(skillIds) || skillIds.length === 0) {
+        return res.status(400).json({ error: 'Missing required fields: ids (array) and skillIds (array)' });
+    }
+    
+    const results = [];
+    let completedOperations = 0;
+    const totalOperations = ids.length * skillIds.length;
+    
+    ids.forEach(personId => {
+        skillIds.forEach(skillId => {
+            // Insert or ignore if already exists
+            const today = new Date().toISOString().split('T')[0];
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 6); // 6 months training period
+            const trainingEndDate = endDate.toISOString().split('T')[0];
+            
+            db.run(
+                `INSERT OR IGNORE INTO person_skills (person_id, skill_id, status, training_start_date, training_end_date, created_at) 
+                 VALUES (?, ?, 'בתהליך הסמכה', ?, ?, CURRENT_TIMESTAMP)`,
+                [personId, skillId, today, trainingEndDate],
+                function(err) {
+                    completedOperations++;
+                    
+                    if (err) {
+                        results.push({ personId, skillId, success: false, error: err.message });
+                    } else if (this.changes === 0) {
+                        results.push({ personId, skillId, success: false, error: 'Skill already assigned to person' });
+                    } else {
+                        results.push({ personId, skillId, success: true });
+                    }
+                    
+                    // Send response when all operations complete
+                    if (completedOperations === totalOperations) {
+                        res.json({ 
+                            message: 'Batch skill assignment completed',
+                            results,
+                            successCount: results.filter(r => r.success).length,
+                            errorCount: results.filter(r => !r.success).length
+                        });
+                    }
+                }
+            );
+        });
+    });
+});
+
 // ========== DEPARTMENTS CRUD API ==========
 
 // GET all departments
