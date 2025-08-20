@@ -2913,11 +2913,15 @@
             const modalContent = `
                 <form id="bulkPopulationForm">
                     <div class="form-group">
-                        <label class="form-label">בחר אוכלוסייה</label>
-                        <select class="form-select" name="population_id" required>
-                            <option value="">בחר אוכלוסייה</option>
-                            ${populations.map(pop => `<option value="${pop.id}">${pop.name}</option>`).join('')}
+                        <label class="form-label">בחר אוכלוסייה מהרשימה הקיימת בלבד</label>
+                        <input type="text" id="populationSearch" class="form-input" placeholder="🔍 חפש אוכלוסייה..." 
+                               style="margin-bottom: 8px;">
+                        <select class="form-select" name="population_id" id="populationSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר אוכלוסייה --</option>
+                            ${populations.map(pop => `<option value="${pop.id}" data-name="${pop.name.toLowerCase()}">${pop.name}</option>`).join('')}
                         </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהאוכלוסיות הקיימות במערכת</small>
                     </div>
                     <p class="text-muted">פעולה זו תעדכן את האוכלוסייה עבור ${selectedIds.length} תיקים אישיים נבחרים</p>
                     <div class="form-actions">
@@ -2928,6 +2932,35 @@
             `;
             
             showModal('עדכון אוכלוסייה - פעולה קבוצתית', modalContent);
+            
+            // Add search functionality
+            const searchInput = document.getElementById('populationSearch');
+            const selectElement = document.getElementById('populationSelect');
+            const allOptions = Array.from(selectElement.querySelectorAll('option:not([value=""])'));
+            
+            searchInput.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                
+                // Hide all options first
+                allOptions.forEach(option => {
+                    option.style.display = 'none';
+                });
+                
+                // Show matching options
+                const matchingOptions = allOptions.filter(option => 
+                    option.getAttribute('data-name').includes(searchTerm)
+                );
+                
+                matchingOptions.forEach(option => {
+                    option.style.display = 'block';
+                });
+                
+                // Reset selection if current selection is hidden
+                if (selectElement.value && 
+                    !matchingOptions.some(opt => opt.value === selectElement.value)) {
+                    selectElement.value = '';
+                }
+            });
             
             document.getElementById('bulkPopulationForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -2973,11 +3006,13 @@
             const modalContent = `
                 <form id="bulkDepartmentForm">
                     <div class="form-group">
-                        <label class="form-label">בחר מחלקה</label>
-                        <select class="form-select" name="department_id" required>
-                            <option value="">בחר מחלקה</option>
-                            ${departments.map(dept => `<option value="${dept.id}">${dept.name}</option>`).join('')}
+                        <label class="form-label">בחר מחלקה מהרשימה הקיימת בלבד</label>
+                        <select class="form-select" name="department_id" id="departmentSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר מחלקה --</option>
+                            ${departments.map(dept => `<option value="${dept.id}" data-name="${dept.name.toLowerCase()}">${dept.name}</option>`).join('')}
                         </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהמחלקות הקיימות במערכת</small>
                     </div>
                     <p class="text-muted">פעולה זו תעדכן את המחלקה עבור ${selectedIds.length} תיקים אישיים נבחרים</p>
                     <div class="form-actions">
@@ -3033,11 +3068,13 @@
             const modalContent = `
                 <form id="bulkQualificationForm">
                     <div class="form-group">
-                        <label class="form-label">בחר כשירות</label>
-                        <select class="form-select" name="skill_id" required>
-                            <option value="">בחר כשירות</option>
-                            ${skills.map(skill => `<option value="${skill.id}">${skill.name}</option>`).join('')}
+                        <label class="form-label">בחר כשירות מהרשימה הקיימת בלבד</label>
+                        <select class="form-select" name="skill_id" id="skillSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר כשירות --</option>
+                            ${skills.map(skill => `<option value="${skill.id}" data-name="${skill.name.toLowerCase()}">${skill.name}</option>`).join('')}
                         </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהכשירויות הקיימות במערכת</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label">סטטוס</label>
@@ -8044,133 +8081,59 @@
         
         // Bulk actions with live updates
         async function bulkAddToPopulation() {
-            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
-            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
-                const row = cb.closest('tr');
-                const cells = row.querySelectorAll('td');
-                return {
-                    personalNumber: cells[2].textContent.trim(), // personal number column (after checkbox and name)
-                    fullName: cells[1].textContent.trim() // name column (after checkbox)
-                };
-            });
-            
-            if (selectedPersons.length === 0) {
+            const selectedIds = getSelectedPersonnelIds();
+            if (selectedIds.length === 0) {
                 showErrorToast('אנא בחר לפחות איש אחד');
                 return;
             }
             
-            // Show population selection modal (simplified version)
-            const newPopulation = prompt('הכנס שם אוכלוסייה חדשה:');
-            if (!newPopulation) return;
-            
             try {
-                // Simulate API call
-                console.log('Adding population to:', selectedPersons, 'Population:', newPopulation);
+                const response = await fetch(`${API_BASE}/populations`);
+                if (!response.ok) throw new Error('Failed to load populations');
+                const populations = await response.json();
                 
-                // Update each selected person's row
-                selectedPersons.forEach(person => {
-                    updatePersonnelRowInPlace(person.personalNumber, {
-                        personal_number: person.personalNumber,
-                        population_name: newPopulation
-                    });
-                });
-                
-                showSuccessToast(`אוכלוסייה "${newPopulation}" נוספה ל-${selectedPersons.length} אנשים`);
-                
-                // Clear selections
-                selectedCheckboxes.forEach(cb => cb.checked = false);
-                document.getElementById('personnelBulkActions').style.display = 'none';
-                
+                showBulkPopulationModal(selectedIds, populations);
             } catch (error) {
-                console.error('Error adding population:', error);
-                showErrorToast('שגיאה בהוספת אוכלוסייה');
+                console.error('Failed to load populations:', error);
+                showToast('שגיאה בטעינת אוכלוסיות', 'error');
             }
         }
         
         async function bulkAddToDepartment() {
-            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
-            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
-                const row = cb.closest('tr');
-                const cells = row.querySelectorAll('td');
-                return {
-                    personalNumber: cells[2].textContent.trim(), // personal number after checkbox and name
-                    fullName: cells[1].textContent.trim() // name after checkbox
-                };
-            });
-            
-            if (selectedPersons.length === 0) {
+            const selectedIds = getSelectedPersonnelIds();
+            if (selectedIds.length === 0) {
                 showErrorToast('אנא בחר לפחות איש אחד');
                 return;
             }
             
-            const newDepartment = prompt('הכנס שם מחלקה חדשה:');
-            if (!newDepartment) return;
-            
             try {
-                console.log('Adding to department:', selectedPersons, 'Department:', newDepartment);
+                const response = await fetch(`${API_BASE}/departments`);
+                if (!response.ok) throw new Error('Failed to load departments');
+                const departments = await response.json();
                 
-                selectedPersons.forEach(person => {
-                    updatePersonnelRowInPlace(person.personalNumber, {
-                        personal_number: person.personalNumber,
-                        department_name: newDepartment
-                    });
-                });
-                
-                showSuccessToast(`מחלקה "${newDepartment}" נוספה ל-${selectedPersons.length} אנשים`);
-                
-                selectedCheckboxes.forEach(cb => cb.checked = false);
-                document.getElementById('personnelBulkActions').style.display = 'none';
-                
+                showBulkDepartmentModal(selectedIds, departments);
             } catch (error) {
-                console.error('Error adding to department:', error);
-                showErrorToast('שגיאה בהוספה למחלקה');
+                console.error('Failed to load departments:', error);
+                showToast('שגיאה בטעינת מחלקות', 'error');
             }
         }
         
         async function bulkAddQualification() {
-            const selectedCheckboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
-            const selectedPersons = Array.from(selectedCheckboxes).map(cb => {
-                const row = cb.closest('tr');
-                const cells = row.querySelectorAll('td');
-                return {
-                    personalNumber: cells[2].textContent.trim(), // personal number after checkbox and name
-                    fullName: cells[1].textContent.trim(), // name after checkbox
-                    currentQualifications: cells[7].textContent.trim() // qualifications column
-                };
-            });
-            
-            if (selectedPersons.length === 0) {
+            const selectedIds = getSelectedPersonnelIds();
+            if (selectedIds.length === 0) {
                 showErrorToast('אנא בחר לפחות איש אחד');
                 return;
             }
             
-            const newQualification = prompt('הכנס כשירות חדשה:');
-            if (!newQualification) return;
-            
             try {
-                console.log('Adding qualification:', selectedPersons, 'Qualification:', newQualification);
+                const response = await fetch(`${API_BASE}/skills`);
+                if (!response.ok) throw new Error('Failed to load skills');
+                const skills = await response.json();
                 
-                selectedPersons.forEach(person => {
-                    // Add new qualification to existing ones
-                    const existingQuals = person.currentQualifications ? person.currentQualifications.split(',').map(q => q.trim()) : [];
-                    if (!existingQuals.includes(newQualification)) {
-                        existingQuals.push(newQualification);
-                    }
-                    
-                    updatePersonnelRowInPlace(person.personalNumber, {
-                        personal_number: person.personalNumber,
-                        qualifications: existingQuals.join(', ')
-                    });
-                });
-                
-                showSuccessToast(`כשירות "${newQualification}" נוספה ל-${selectedPersons.length} אנשים`);
-                
-                selectedCheckboxes.forEach(cb => cb.checked = false);
-                document.getElementById('personnelBulkActions').style.display = 'none';
-                
+                showBulkQualificationModal(selectedIds, skills);
             } catch (error) {
-                console.error('Error adding qualification:', error);
-                showErrorToast('שגיאה בהוספת כשירות');
+                console.error('Failed to load skills:', error);
+                showToast('שגיאה בטעינת כשירויות', 'error');
             }
         }
         
@@ -8312,6 +8275,226 @@
                 console.error('Error saving person edits:', error);
                 showErrorToast('שגיאה בשמירת השינויים');
             }
+        }
+        
+        // Bulk modal functions
+        function showBulkPopulationModal(selectedIds, populations) {
+            const modalContent = `
+                <form id="bulkPopulationForm">
+                    <div class="form-group">
+                        <label class="form-label">בחר אוכלוסייה מהרשימה הקיימת בלבד</label>
+                        <select class="form-select" name="population_id" id="populationSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר אוכלוסייה --</option>
+                            ${populations.map(pop => `<option value="${pop.id}" data-name="${pop.name.toLowerCase()}">${pop.name}</option>`).join('')}
+                        </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהאוכלוסיות הקיימות במערכת</small>
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeBulkModal()">ביטול</button>
+                        <button type="submit" class="btn btn-primary">הוסף לאוכלוסייה (${selectedIds.length})</button>
+                    </div>
+                </form>
+            `;
+            
+            showBulkModal('הוספה לאוכלוסייה', modalContent);
+            
+            document.getElementById('bulkPopulationForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const populationId = document.getElementById('populationSelect').value;
+                if (!populationId) return;
+                
+                await executeBulkAction('personnel/batch/population', { ids: selectedIds, populationId: parseInt(populationId) });
+                closeBulkModal();
+            };
+        }
+        
+        function showBulkDepartmentModal(selectedIds, departments) {
+            const modalContent = `
+                <form id="bulkDepartmentForm">
+                    <div class="form-group">
+                        <label class="form-label">בחר מחלקה מהרשימה הקיימת בלבד</label>
+                        <select class="form-select" name="department_id" id="departmentSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר מחלקה --</option>
+                            ${departments.map(dept => `<option value="${dept.id}" data-name="${dept.name.toLowerCase()}">${dept.name}</option>`).join('')}
+                        </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהמחלקות הקיימות במערכת</small>
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeBulkModal()">ביטול</button>
+                        <button type="submit" class="btn btn-primary">הוסף למחלקה (${selectedIds.length})</button>
+                    </div>
+                </form>
+            `;
+            
+            showBulkModal('הוספה למחלקה', modalContent);
+            
+            document.getElementById('bulkDepartmentForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const departmentId = document.getElementById('departmentSelect').value;
+                if (!departmentId) return;
+                
+                await executeBulkAction('personnel/batch/department', { ids: selectedIds, departmentId: parseInt(departmentId) });
+                closeBulkModal();
+            };
+        }
+        
+        function showBulkQualificationModal(selectedIds, skills) {
+            const modalContent = `
+                <form id="bulkQualificationForm">
+                    <div class="form-group">
+                        <label class="form-label">בחר כשירות מהרשימה הקיימת בלבד</label>
+                        <select class="form-select" name="skill_id" id="skillSelect" required 
+                                style="max-height: 200px;">
+                            <option value="">-- בחר כשירות --</option>
+                            ${skills.map(skill => `<option value="${skill.id}" data-name="${skill.name.toLowerCase()}">${skill.name}</option>`).join('')}
+                        </select>
+                        <small style="color: var(--text-muted); font-size: 12px;">⚠️ ניתן לבחור רק מהכשירויות הקיימות במערכת</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">סטטוס כשירות</label>
+                        <select class="form-select" name="status" id="statusSelect" required>
+                            <option value="active">פעיל</option>
+                            <option value="expired">פג תוקף</option>
+                            <option value="pending">ממתין</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">תאריך קבלה</label>
+                        <input type="date" class="form-input" name="obtained_date" id="obtainedDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">תאריך תפוגה</label>
+                        <input type="date" class="form-input" name="expiration_date" id="expirationDate">
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeBulkModal()">ביטול</button>
+                        <button type="submit" class="btn btn-primary">הוסף כשירות (${selectedIds.length})</button>
+                    </div>
+                </form>
+            `;
+            
+            showBulkModal('הוספת כשירות', modalContent);
+            
+            // Set default obtained date to today
+            document.getElementById('obtainedDate').value = new Date().toISOString().split('T')[0];
+            
+            document.getElementById('bulkQualificationForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const skillId = document.getElementById('skillSelect').value;
+                const status = document.getElementById('statusSelect').value;
+                const obtainedDate = document.getElementById('obtainedDate').value;
+                const expirationDate = document.getElementById('expirationDate').value;
+                
+                if (!skillId) return;
+                
+                const payload = {
+                    ids: selectedIds,
+                    skillIds: [parseInt(skillId)],
+                    status,
+                    obtained_date: obtainedDate,
+                    expiration_date: expirationDate || null
+                };
+                
+                await executeBulkAction('personnel/batch-skills', payload);
+                closeBulkModal();
+            };
+        }
+        
+        function showBulkModal(title, content) {
+            const modal = document.createElement('div');
+            modal.id = 'bulkActionModal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            `;
+            
+            modal.innerHTML = `
+                <div style="background: var(--bg-primary); border-radius: 8px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;">
+                    <h3 style="margin: 0 0 20px 0; color: var(--text-primary);">${title}</h3>
+                    ${content}
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Close modal when clicking outside
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeBulkModal();
+                }
+            });
+        }
+        
+        function closeBulkModal() {
+            const modal = document.getElementById('bulkActionModal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+        
+        async function executeBulkAction(endpoint, payload) {
+            try {
+                // Remove leading slash if present to avoid double slashes
+                const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+                const url = `${API_BASE}/${cleanEndpoint}`;
+                
+                console.log('Making request to:', url, 'with payload:', payload);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log('Response status:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showSuccessToast(`פעולה בוצעה בהצלחה עבור ${payload.ids.length} אנשים`);
+                    
+                    // Clear selections and hide bulk actions
+                    const checkboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]');
+                    checkboxes.forEach(cb => cb.checked = false);
+                    document.getElementById('personnelBulkActions').style.display = 'none';
+                    
+                    // Table will refresh automatically with live data
+                } else {
+                    const responseText = await response.text();
+                    console.log('Error response:', responseText);
+                    try {
+                        const error = JSON.parse(responseText);
+                        showErrorToast(error.message || error.error || 'שגיאה בביצוע הפעולה');
+                    } catch (parseError) {
+                        showErrorToast(`שגיאה בשרת (${response.status})`);
+                    }
+                }
+            } catch (error) {
+                console.error('Error executing bulk action:', error);
+                showErrorToast('שגיאה בחיבור לשרת');
+            }
+        }
+        
+        function getSelectedPersonnelIds() {
+            const checkboxes = document.querySelectorAll('#personnelTable input[type="checkbox"]:checked');
+            return Array.from(checkboxes).map(cb => {
+                const row = cb.closest('tr');
+                const cells = row.querySelectorAll('td');
+                // Assuming the personnel ID is stored as a data attribute or can be extracted from row
+                // For now, we'll use personal number as identifier
+                return cells[2].textContent.trim(); // personal number column
+            }).filter(id => id); // Filter out empty values
         }
         
     </script>

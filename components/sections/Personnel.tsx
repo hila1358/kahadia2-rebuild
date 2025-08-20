@@ -20,7 +20,6 @@ function BulkActionModal({ isOpen, onClose, selectedIds, actionType, onConfirm }
   const [populations, setPopulations] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [skills, setSkills] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedValue, setSelectedValue] = useState('');
   const [selectedSkills, setSelectedSkills] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
@@ -54,15 +53,9 @@ function BulkActionModal({ isOpen, onClose, selectedIds, actionType, onConfirm }
     }
   };
 
-  const getFilteredData = () => {
-    const data = actionType === 'population' ? populations : 
-                actionType === 'department' ? departments : skills;
-    
-    if (!searchTerm) return data;
-    
-    return data.filter((item: any) => 
-      item.name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+  const getData = () => {
+    return actionType === 'population' ? populations : 
+           actionType === 'department' ? departments : skills;
   };
 
   const handleConfirm = () => {
@@ -76,23 +69,15 @@ function BulkActionModal({ isOpen, onClose, selectedIds, actionType, onConfirm }
   };
 
   const handleClose = () => {
-    setSearchTerm('');
     setSelectedValue('');
     setSelectedSkills([]);
     onClose();
   };
 
-  const toggleSkillSelection = (skillId: number) => {
-    setSelectedSkills(prev => 
-      prev.includes(skillId) 
-        ? prev.filter(id => id !== skillId)
-        : [...prev, skillId]
-    );
-  };
 
   if (!isOpen) return null;
 
-  const filteredData = getFilteredData();
+  const data = getData();
   const title = actionType === 'population' ? 'הוסף לאוכלוסייה' :
                actionType === 'department' ? 'הוסף למחלקה' :
                'הוסף כשירויות';
@@ -112,211 +97,84 @@ function BulkActionModal({ isOpen, onClose, selectedIds, actionType, onConfirm }
           {title} ({selectedIds.length} נבחרו)
         </h3>
         
-        <div style={{ 
-          padding: '12px', 
-          backgroundColor: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: 'var(--radius)',
-          marginBottom: '16px',
-          fontSize: '14px',
-          color: '#dc2626',
-          fontWeight: '500'
-        }}>
-          ⚠️ בחירה בלבד מהרשימה הקיימת - אין אפשרות להוסיף פריטים חדשים
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{ 
-            display: 'block', 
-            marginBottom: '8px', 
-            fontWeight: '500', 
-            color: 'var(--text-secondary)' 
-          }}>
-            🔍 סינון הרשימה (חיפוש בלבד):
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type="text"
-              placeholder={`הקלד לסינון ${actionType === 'population' ? 'אוכלוסיות קיימות' : actionType === 'department' ? 'מחלקות קיימות' : 'כשירויות קיימות'}...`}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{
-                width: '100%', padding: '8px 12px 8px 36px',
-                border: '2px solid rgba(102, 126, 234, 0.3)',
-                borderRadius: 'var(--radius)',
-                backgroundColor: 'var(--bg-secondary)',
-                color: 'var(--text-primary)',
-                fontSize: '14px'
-              }}
-            />
-            <span style={{
-              position: 'absolute', left: '12px', top: '50%',
-              transform: 'translateY(-50%)', color: 'var(--text-secondary)',
-              fontSize: '16px'
-            }}>
-              🔍
-            </span>
-          </div>
-          <div style={{ 
-            fontSize: '12px', 
-            color: 'var(--text-secondary)', 
-            marginTop: '4px',
-            fontStyle: 'italic'
-          }}>
-            סינון בלבד - לא ניתן ליצור פריטים חדשים
-          </div>
-        </div>
-
-        <div style={{ 
-          padding: '12px', 
-          backgroundColor: 'rgba(34, 197, 94, 0.1)',
-          border: '1px solid rgba(34, 197, 94, 0.3)',
-          borderRadius: 'var(--radius)',
-          marginBottom: '16px',
-          fontSize: '14px',
-          color: '#16a34a'
-        }}>
-          {actionType === 'qualifications' 
-            ? '☑️ בחר כשירויות מהרשימה למטה (ניתן לבחור מספר כשירויות):'
-            : `🔘 בחר ${actionType === 'population' ? 'אוכלוסייה אחת' : 'מחלקה אחת'} מהרשימה למטה:`
-          }
-        </div>
-
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '20px' }}>טוען פריטים קיימים...</div>
+          <div style={{ textAlign: 'center', padding: '20px' }}>טוען נתונים...</div>
         ) : (
           <div>
-            <div style={{ 
-              fontSize: '13px', 
-              fontWeight: '600', 
-              color: 'var(--text-primary)', 
-              marginBottom: '8px',
-              borderBottom: '2px solid rgba(102, 126, 234, 0.2)',
-              paddingBottom: '6px'
-            }}>
-              📋 רשימת {actionType === 'population' ? 'אוכלוסיות' : actionType === 'department' ? 'מחלקות' : 'כשירויות'} קיימות במערכת:
-            </div>
-            <div style={{ 
-              maxHeight: '300px', overflowY: 'auto',
-              border: '2px solid rgba(102, 126, 234, 0.3)', 
-              borderRadius: 'var(--radius)',
-              backgroundColor: 'var(--bg-secondary)'
-            }}>
-            {filteredData.length === 0 ? (
-              <div style={{ 
-                padding: '20px', 
-                textAlign: 'center', 
-                color: 'var(--text-secondary)',
-                fontStyle: 'italic'
-              }}>
-                {searchTerm ? 'לא נמצאו תוצאות חיפוש' : 'אין פריטים זמינים'}
-              </div>
-            ) : (
-              filteredData.map((item: any) => (
-                <div 
-                  key={item.id} 
+            {actionType === 'qualifications' ? (
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '500', 
+                  color: 'var(--text-primary)' 
+                }}>
+                  בחר כשירויות (ניתן לבחור מספר כשירויות):
+                </label>
+                <select 
+                  multiple 
+                  value={selectedSkills.map(String)} 
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions, option => Number(option.value));
+                    setSelectedSkills(values);
+                  }}
                   style={{
-                    padding: '12px', 
-                    borderBottom: '1px solid var(--border)',
-                    cursor: 'pointer',
-                    backgroundColor: (
-                      actionType === 'qualifications' 
-                        ? selectedSkills.includes(item.id)
-                        : selectedValue === item.id
-                    ) ? 'rgba(102, 126, 234, 0.15)' : 'transparent',
-                    transition: 'background-color 0.2s ease',
-                    ':hover': {
-                      backgroundColor: 'rgba(102, 126, 234, 0.08)'
-                    }
-                  }}
-                  onClick={() => {
-                    if (actionType === 'qualifications') {
-                      toggleSkillSelection(item.id);
-                    } else {
-                      setSelectedValue(item.id);
-                    }
-                  }}
-                  onMouseEnter={(e) => {
-                    const target = e.currentTarget as HTMLElement;
-                    if (!(actionType === 'qualifications' ? selectedSkills.includes(item.id) : selectedValue === item.id)) {
-                      target.style.backgroundColor = 'rgba(102, 126, 234, 0.08)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    const target = e.currentTarget as HTMLElement;
-                    if (!(actionType === 'qualifications' ? selectedSkills.includes(item.id) : selectedValue === item.id)) {
-                      target.style.backgroundColor = 'transparent';
-                    }
+                    width: '100%', 
+                    minHeight: '200px',
+                    padding: '8px',
+                    border: '2px solid rgba(102, 126, 234, 0.3)',
+                    borderRadius: 'var(--radius)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {actionType === 'qualifications' ? (
-                      <input
-                        type="checkbox"
-                        checked={selectedSkills.includes(item.id)}
-                        onChange={() => toggleSkillSelection(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ 
-                          cursor: 'pointer', 
-                          width: '16px', 
-                          height: '16px' 
-                        }}
-                      />
-                    ) : (
-                      <input
-                        type="radio"
-                        name="selection"
-                        checked={selectedValue === item.id}
-                        onChange={() => setSelectedValue(item.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{ 
-                          cursor: 'pointer', 
-                          width: '16px', 
-                          height: '16px' 
-                        }}
-                      />
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontWeight: '500', 
-                        color: 'var(--text-primary)',
-                        marginBottom: '4px'
-                      }}>
-                        {item.name}
-                      </div>
-                      {item.notes && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-secondary)',
-                          lineHeight: '1.4'
-                        }}>
-                          {item.notes}
-                        </div>
-                      )}
-                      {actionType === 'department' && item.member_count !== undefined && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-secondary)',
-                          marginTop: '2px'
-                        }}>
-                          👥 {item.member_count} חברים
-                        </div>
-                      )}
-                      {actionType === 'population' && item.person_count !== undefined && (
-                        <div style={{ 
-                          fontSize: '12px', 
-                          color: 'var(--text-secondary)',
-                          marginTop: '2px'
-                        }}>
-                          👥 {item.person_count} אנשים
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  {data.map((item: any) => (
+                    <option key={item.id} value={item.id} style={{ padding: '8px' }}>
+                      {item.name} {item.notes && `- ${item.notes}`}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: 'var(--text-secondary)', 
+                  marginTop: '4px' 
+                }}>
+                  החזק Ctrl/Cmd לבחירת מספר כשירויות
                 </div>
-              ))
+              </div>
+            ) : (
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '500', 
+                  color: 'var(--text-primary)' 
+                }}>
+                  בחר {actionType === 'population' ? 'אוכלוסייה' : 'מחלקה'}:
+                </label>
+                <select 
+                  value={selectedValue} 
+                  onChange={(e) => setSelectedValue(e.target.value)}
+                  style={{
+                    width: '100%', 
+                    padding: '12px',
+                    border: '2px solid rgba(102, 126, 234, 0.3)',
+                    borderRadius: 'var(--radius)',
+                    backgroundColor: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="">-- בחר {actionType === 'population' ? 'אוכלוסייה' : 'מחלקה'} --</option>
+                  {data.map((item: any) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} {item.notes && `- ${item.notes}`} {actionType === 'department' && item.member_count !== undefined && `(${item.member_count} חברים)`}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-            </div>
           </div>
         )}
 
@@ -463,6 +321,40 @@ export default function Personnel({ isActive }: PersonnelProps) {
     }
   };
 
+  const handleExportToExcel = () => {
+    const dataToExport = filteredPersonnelData.map(person => ({
+      'שם מלא': person.full_name,
+      'מספר אישי': person.personal_number,
+      'דרגה': person.rank,
+      'מחלקה': person.department_name || '',
+      'אוכלוסייה': person.population_name || '',
+      'כשירויות': person.skills ? person.skills.map((skill: any) => skill.name || skill).join(', ') : ''
+    }));
+    
+    // Convert to CSV format
+    const headers = Object.keys(dataToExport[0] || {});
+    const csvContent = [
+      headers.join(','),
+      ...dataToExport.map(row => 
+        headers.map(header => `"${row[header] || ''}"`).join(',')
+      )
+    ].join('\n');
+    
+    // Create and download file
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `תיקים_אישיים_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setSuccessMessage('הנתונים יוצאו בהצלחה');
+    setTimeout(() => setSuccessMessage(''), 3000);
+  };
+
   const modalContent = (
     <form>
       <div style={{ marginBottom: '20px' }}>
@@ -520,9 +412,9 @@ export default function Personnel({ isActive }: PersonnelProps) {
             <span>➕</span>
             <span>הוסף תיק אישי</span>
           </button>
-          <button className="btn btn-secondary">
+          <button className="btn btn-secondary" onClick={handleExportToExcel}>
             <span>📊</span>
-            <span>ייצא נתונים</span>
+            <span>ייצא לאקסל</span>
           </button>
           
           {selectedIds.length > 0 && (
