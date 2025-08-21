@@ -359,7 +359,7 @@ app.get('/api/departments', (req, res) => {
 
 // POST create department
 app.post('/api/departments', (req, res) => {
-    const { name, commander_id, soldier_ids, soldierIds } = req.body;
+    const { name, commander_id, soldier_ids, soldierIds, notes } = req.body;
     const soldierIdsList = soldier_ids || soldierIds;
     
     if (!name) {
@@ -386,7 +386,7 @@ app.post('/api/departments', (req, res) => {
             // Create department
             const query = 'INSERT INTO departments (name, commander_id, notes) VALUES (?, ?, ?)';
             
-            db.run(query, [name, commander_id, ''], function(err) {
+            db.run(query, [name, commander_id, notes || ''], function(err) {
                 if (err) {
                     db.run('ROLLBACK');
                     return res.status(500).json({ error: err.message });
@@ -517,7 +517,7 @@ app.get('/api/departments/:id', (req, res) => {
 
 // PUT update department
 app.put('/api/departments/:id', (req, res) => {
-    const { name, commander_id, soldier_ids, soldierIds, commanderId, force } = req.body;
+    const { name, commander_id, soldier_ids, soldierIds, commanderId, force, notes } = req.body;
     const soldierIdsList = soldier_ids || soldierIds;
     const actualCommanderId = commander_id || commanderId;
     
@@ -551,7 +551,7 @@ app.put('/api/departments/:id', (req, res) => {
                 WHERE id = ?
             `;
             
-            db.run(query, [name, actualCommanderId, '', req.params.id], function(err) {
+            db.run(query, [name, actualCommanderId, notes || '', req.params.id], function(err) {
                 if (err) {
                     db.run('ROLLBACK');
                     return res.status(500).json({ error: err.message });

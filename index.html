@@ -1463,7 +1463,6 @@
                             </div>
                             <div class="position-actions">
                                 <button class="btn btn-secondary" onclick="editPosition(1)">עריכה</button>
-                                <button class="btn btn-primary" onclick="showRoleModal(1, 'מוקד תקשורת')">הוסף תפקידן</button>
                                 <button class="btn btn-danger" onclick="deletePosition(1, 'מוקד תקשורת')">מחיקה</button>
                             </div>
                         </div>
@@ -1760,8 +1759,6 @@
         <button class="theme-toggle-btn" onclick="toggleTheme()">🌙</button>
     </div>
 
-    <!-- Floating Action Button -->
-    <button class="fab" onclick="showQuickAdd()">➕</button>
 
     <!-- Toast Container -->
     <div class="toast-container" id="toast-container"></div>
@@ -2395,12 +2392,21 @@
                             <label class="form-label">דרגה *</label>
                             <select class="form-select" name="rank" required>
                                 <option value="">בחר דרגה</option>
+                                <option value="טוראי">טוראי</option>
                                 <option value="רב״ט">רב״ט</option>
                                 <option value="סמל">סמל</option>
                                 <option value="סמ״ר">סמ״ר</option>
+                                <option value="רס״ל">רס״ל</option>
                                 <option value="רס״ר">רס״ר</option>
-                                <option value="רב״ס">רב״ס</option>
-                                <option value="רב״ח">רב״ח</option>
+                                <option value="רס״מ">רס״מ</option>
+                                <option value="רס״ב">רס״ב</option>
+                                <option value="רנ״ג">רנ״ג</option>
+                                <option value="סג״מ">סג״מ</option>
+                                <option value="סגן">סגן</option>
+                                <option value="סרן">סרן</option>
+                                <option value="רס״ן">רס״ן</option>
+                                <option value="סא״ל">סא״ל</option>
+                                <option value="אל״מ">אל״מ</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -3289,12 +3295,21 @@
                             <label class="form-label">דרגה *</label>
                             <select class="form-select" name="rank" required>
                                 <option value="">בחר דרגה</option>
+                                <option value="טוראי">טוראי</option>
                                 <option value="רב״ט">רב״ט</option>
                                 <option value="סמל">סמל</option>
                                 <option value="סמ״ר">סמ״ר</option>
+                                <option value="רס״ל">רס״ל</option>
                                 <option value="רס״ר">רס״ר</option>
-                                <option value="רב״ס">רב״ס</option>
-                                <option value="רב״ח">רב״ח</option>
+                                <option value="רס״מ">רס״מ</option>
+                                <option value="רס״ב">רס״ב</option>
+                                <option value="רנ״ג">רנ״ג</option>
+                                <option value="סג״מ">סג״מ</option>
+                                <option value="סגן">סגן</option>
+                                <option value="סרן">סרן</option>
+                                <option value="רס״ן">רס״ן</option>
+                                <option value="סא״ל">סא״ל</option>
+                                <option value="אל״מ">אל״מ</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -3626,15 +3641,35 @@
             const container = document.getElementById('departmentsContainer');
             if (!container) return;
 
-            container.innerHTML = departments.map(dept => `
+            console.log('updateDepartmentsDisplay called with:', departments); // Debug log
+
+            container.innerHTML = departments.map(dept => {
+                console.log('Dept:', dept.name, 'Notes:', dept.notes); // Debug log
+                return `
                 <div class="department-card">
                     <div class="department-header">
                         <div class="department-name">${dept.name}</div>
                         <div class="department-count">${dept.member_count || 0} אנשים</div>
                     </div>
+                    ${dept.notes ? `
+                        <div class="department-notes" style="
+                            background: rgba(102, 126, 234, 0.1);
+                            border: 1px solid rgba(102, 126, 234, 0.3);
+                            border-radius: 6px;
+                            padding: 8px 12px;
+                            margin: 8px 0;
+                            font-size: 13px;
+                            color: var(--text-primary);
+                            line-height: 1.4;
+                        ">
+                            <strong style="color: #667eea;">📝 הערות:</strong> 
+                            <span style="display: inline-block; max-width: 100%; word-wrap: break-word;">${dept.notes.length > 100 ? dept.notes.substring(0, 100) + '...' : dept.notes}</span>
+                            ${dept.notes.length > 100 ? '<span style="color: #667eea; cursor: pointer; font-weight: 500;" onclick="alert(\'' + dept.notes.replace(/'/g, "\\'") + '\')"> [הצג הכל]</span>' : ''}
+                        </div>
+                    ` : ''}
+                    <!-- DEBUG: Notes field = ${dept.notes || 'null'} -->
                     <div class="department-details">
                         <p><strong>מפקד מחלקה:</strong> ${dept.commander_name || 'לא מוגדר'}</p>
-                        <p><strong>הערות:</strong> ${dept.notes || 'ללא הערות'}</p>
                         ${dept.soldiers && dept.soldiers.length > 0 ? `
                             <div style="margin-top: 12px;">
                                 <strong>חיילים:</strong>
@@ -3651,11 +3686,11 @@
                     <div class="department-actions">
                         <button class="btn btn-secondary" onclick="editDepartment(${dept.id})">עריכה</button>
                         <button class="btn btn-primary" onclick="showCommanderAssignmentModal(${dept.id}, '${dept.name}')">מפקד</button>
-                        <button class="btn btn-danger" onclick="deleteDepartment(${dept.id})" 
-                                ${dept.member_count > 0 ? 'disabled title="לא ניתן למחוק - יש אנשים במחלקה"' : ''}>מחיקה</button>
+                        <button class="btn btn-danger" onclick="deleteDepartment(${dept.id})">מחיקה</button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         async function editDepartment(id) {
@@ -6657,12 +6692,31 @@
                 const commander = dept.members.find(m => m.is_commander);
                 const soldiers = dept.members.filter(m => !m.is_commander);
                 
+                console.log('Department:', dept.name, 'Notes:', dept.notes); // Debug log
+                
                 return `
                     <div class="department-card">
                         <div class="department-header">
                             <div class="department-name">${dept.name}</div>
                             <div class="department-count">${dept.members.length} אנשים</div>
                         </div>
+                        ${dept.notes ? `
+                            <div class="department-notes" style="
+                                background: rgba(102, 126, 234, 0.1);
+                                border: 1px solid rgba(102, 126, 234, 0.3);
+                                border-radius: 6px;
+                                padding: 8px 12px;
+                                margin: 8px 0;
+                                font-size: 13px;
+                                color: var(--text-primary);
+                                line-height: 1.4;
+                            ">
+                                <strong style="color: #667eea;">📝 הערות:</strong> 
+                                <span style="display: inline-block; max-width: 100%; word-wrap: break-word;">${dept.notes.length > 100 ? dept.notes.substring(0, 100) + '...' : dept.notes}</span>
+                                ${dept.notes.length > 100 ? '<span style="color: #667eea; cursor: pointer; font-weight: 500;" onclick="alert(\'' + dept.notes.replace(/'/g, "\\'") + '\')"> [הצג הכל]</span>' : ''}
+                            </div>
+                        ` : ''}
+                        <!-- DEBUG: Dept notes = ${dept.notes || 'null'} -->
                         <div class="department-details">
                             <p><strong>מפקד מחלקה:</strong> ${commander ? `${commander.full_name} - ${commander.rank}` : 'לא מוגדר'}</p>
                             ${soldiers.length > 0 ? `
@@ -6675,7 +6729,6 @@
                                     ).join('')}
                                 </div>
                             ` : '<p style="color: var(--text-muted); font-style: italic;">אין חיילים במחלקה</p>'}
-                            ${dept.notes ? `<p><strong>הערות:</strong> ${dept.notes}</p>` : ''}
                         </div>
                         <div class="department-actions">
                             <button class="btn btn-secondary" onclick="editDepartment(${dept.id})">עריכה</button>

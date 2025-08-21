@@ -653,10 +653,21 @@ class KahadiaApp {
                     <label class="form-label">דרגה *</label>
                     <select class="form-select" name="rank" required>
                         <option value="">בחר דרגה</option>
+                        <option value="טוראי" ${person?.rank === 'טוראי' ? 'selected' : ''}>טוראי</option>
                         <option value="רב״ט" ${person?.rank === 'רב״ט' ? 'selected' : ''}>רב״ט</option>
                         <option value="סמל" ${person?.rank === 'סמל' ? 'selected' : ''}>סמל</option>
                         <option value="סמ״ר" ${person?.rank === 'סמ״ר' ? 'selected' : ''}>סמ״ר</option>
+                        <option value="רס״ל" ${person?.rank === 'רס״ל' ? 'selected' : ''}>רס״ל</option>
                         <option value="רס״ר" ${person?.rank === 'רס״ר' ? 'selected' : ''}>רס״ר</option>
+                        <option value="רס״מ" ${person?.rank === 'רס״מ' ? 'selected' : ''}>רס״מ</option>
+                        <option value="רס״ב" ${person?.rank === 'רס״ב' ? 'selected' : ''}>רס״ב</option>
+                        <option value="רנ״ג" ${person?.rank === 'רנ״ג' ? 'selected' : ''}>רנ״ג</option>
+                        <option value="סג״מ" ${person?.rank === 'סג״מ' ? 'selected' : ''}>סג״מ</option>
+                        <option value="סגן" ${person?.rank === 'סגן' ? 'selected' : ''}>סגן</option>
+                        <option value="סרן" ${person?.rank === 'סרן' ? 'selected' : ''}>סרן</option>
+                        <option value="רס״ן" ${person?.rank === 'רס״ן' ? 'selected' : ''}>רס״ן</option>
+                        <option value="סא״ל" ${person?.rank === 'סא״ל' ? 'selected' : ''}>סא״ל</option>
+                        <option value="אל״מ" ${person?.rank === 'אל״מ' ? 'selected' : ''}>אל״מ</option>
                     </select>
                 </div>
                 <div class="form-group">
